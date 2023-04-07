@@ -1,0 +1,20 @@
+{
+    "templates": [
+      {
+        "name": "Bug easy",
+        "weight": 1,
+        "labels": ["Bug", "P::1"]
+      },
+      {
+        "name": "Bug medium",
+        "weight": 3,
+        "labels": ["Bug", "P::1"]
+      },
+      {
+        "name": "Feature easy",
+        "weight": 3,
+        "labels": ["feature::Confirmed"]
+      }
+    ]
+  }
+  
