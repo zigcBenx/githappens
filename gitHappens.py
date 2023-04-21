@@ -6,15 +6,18 @@ import configparser
 import inquirer
 import datetime
 import re
+import os
 
 # Setup config parser and read settings
 config = configparser.ConfigParser()
-config.read('configs/config.ini')
+absolute_config_path = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(absolute_config_path, 'configs/config.ini')
+config.read(config_path)
 GROUP_ID=config.get('DEFAULT', 'group_id')
 CUSTOM_TEMPLATE=config.get('DEFAULT', 'custom_template')
 
 # Read templates from json config
-with open('configs/templates.json', 'r') as f:
+with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
     jsonConfig = json.load(f)
 TEMPLATES = jsonConfig['templates']
 
@@ -37,7 +40,7 @@ def getProjectIdFromCurrentDir():
 
 def enterProjectId():
     while True:
-        project_id = input('Please enter the ID or URL-encoded path of your GitLab project: ')
+        project_id = input('Please enter the ID of your GitLab project: ')
         if project_id:
             return project_id
         exit('Invalid project ID.')
@@ -174,6 +177,7 @@ def main():
     title = " ".join(args.title)
     
     project_id = args.project_id or get_project_id()
+    
 
     milestone = get_milestone(args.milestone)
 
