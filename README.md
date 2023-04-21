@@ -27,3 +27,12 @@ Milestone is set to current by default. If you want to pick it manually, pass `-
 Issue templates are located in `configs/templates.json`.
 
 **Make sure that names of templates are unique**
+
+## create alias
+
+To run gitHappens script anywhere in filesystem, make sure to create an alias.
+
+Add following line to your `.bashrc` or `.zshrc` file
+```alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'```
+
+You can change alias name to your preference.
