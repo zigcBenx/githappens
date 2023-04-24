@@ -7,6 +7,19 @@
 - Authorize via glab `glab auth login` (you will need Gitlab access token)
 - `pip install inquirer`
 
+## Setup
+
+### Alias 
+
+To run gitHappens script anywhere in filesystem, make sure to create an alias.
+Add following line to your `.bashrc` or `.zshrc` file
+```alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'```
+
+## Template config file
+
+Copy example template file: `cp configs/templates.json.example configs/templates.json`
+
+
 ## group selection
 
 Group is automatically set to DEWE WEB (change `group_id` in config file: `config.ini`)
@@ -24,15 +37,8 @@ Milestone is set to current by default. If you want to pick it manually, pass `-
 
 ## Issue templates
 
-Issue templates are located in `configs/templates.json`.
+Issue templates are located in `configs/templates.json.example`.
+Make sure to copy example file: `cp configs/templates.json.example configs/template.json`
 
+All changes and customizations must be done in `configs/template.json` file.
 **Make sure that names of templates are unique**
-
-## create alias
-
-To run gitHappens script anywhere in filesystem, make sure to create an alias.
-
-Add following line to your `.bashrc` or `.zshrc` file
-```alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'```
-
-You can change alias name to your preference.
