@@ -38,7 +38,7 @@ Milestone is set to current by default. If you want to pick it manually, pass `-
 ## Issue templates
 
 Issue templates are located in `configs/templates.json.example`.
-Make sure to copy example file: `cp configs/templates.json.example configs/template.json`
+Make sure to copy example file: `cp configs/templates.json.example configs/templates.json`
 
 All changes and customizations must be done in `configs/template.json` file.
 **Make sure that names of templates are unique**
