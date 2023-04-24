@@ -153,7 +153,7 @@ def get_epic():
 def create_branch(project_id, issue):
     issueId = str(issue['iid'])
     title = re.sub('\s+', '-', issue['title']).lower()
-    title = issueId + '-' + title.replace(':','').replace('(',' ').replace(')', ' ').replace(' ','-')
+    title = issueId + '-' + title.replace(':','').replace('(',' ').replace(')', '').replace(' ','-')
     branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", 'ref=master', "-f", f'issue_iid={issueId}'])
     return json.loads(branch_output.decode())
 
