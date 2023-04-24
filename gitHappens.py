@@ -161,7 +161,7 @@ def create_merge_request(project_id, branch, issue):
     issueId = str(issue['iid'])
     branch = branch['name']
     title = re.sub('\s+', '-', issue['title']).lower()
-    title = 'Resolve: ' + issueId + '-' + title.replace(':','').replace('(',' ').replace(')', ' ').replace(' ','-')
+    title = 'Draft: Resolve "' + title + '"'
     mr_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/merge_requests", "-f", f'title={title}', "-f", f'description="Closes #{issueId}"', "-f", f'source_branch={branch}', "-f", 'target_branch=master', "-f", 'remove_source_branch=true', "-f", f'issue_iid={issueId}'])
     return json.loads(mr_output.decode())
 
