@@ -15,7 +15,7 @@ To run gitHappens script anywhere in filesystem, make sure to create an alias.
 Add following line to your `.bashrc` or `.zshrc` file
 ```alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'```
 
-## Template config file
+### Template config file
 
 Copy example template file: `cp configs/templates.json.example configs/templates.json`
 
