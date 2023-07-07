@@ -1,3 +1,4 @@
 [DEFAULT]
 group_id=
 custom_template=Custom
+GITLAB_TOKEN=
