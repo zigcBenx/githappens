@@ -54,10 +54,13 @@ def get_all_projects(project_link):
 def getProjectLinkFromCurrentDir():
     try:
         cmd = 'git remote get-url origin'
-        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-        output = result.stdout.decode('utf-8')
-        return output.strip()
-    except StopIteration:
+        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode == 0:
+            output = result.stdout.decode('utf-8').strip()
+            return output
+        else:
+            return -1
+    except FileNotFoundError:
         return -1
 
 def enterProjectId():
