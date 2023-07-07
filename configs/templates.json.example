@@ -1,3 +1,9 @@
+// Allowed keys:
+// name      String
+// weight    Number
+// labels    Array[String]
+// projectId Number
+// epicId    Number
 {
     "templates": [
       {
