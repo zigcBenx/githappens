@@ -28,21 +28,19 @@ def get_project_id():
     if (project_link == -1):
         return enterProjectId()
 
-    allProjects = get_all_projects()
-
+    allProjects = get_all_projects(project_link)
     # Find projects id by project ssh link gathered from repo
     matching_id = None
     for project in allProjects:
-        if project.get("ssh_url_to_repo") == project_link + '.git':
+        if project.get("ssh_url_to_repo") == project_link:
             matching_id = project.get("id")
             break
-
     return matching_id
 
 
     # return get_project_id_from_link(project_link)
-def get_all_projects():
-    url = "https://gitlab.com/api/v4/projects?owned=true"
+def get_all_projects(project_link):
+    url = "https://gitlab.com/api/v4/projects?membership=true&search=" + project_link.split('/')[-1].split('.')[0]
 
     headers = {
         "PRIVATE-TOKEN": GITLAB_TOKEN
@@ -59,12 +57,10 @@ def get_all_projects():
 
 def getProjectLinkFromCurrentDir():
     try:
-        cmd = 'git remote -v'
+        cmd = 'git remote get-url origin'
         result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
         output = result.stdout.decode('utf-8')
-        gitlab_url = next(line.split()[1] for line in output.split('\n') if 'gitlab.com' in line)
-        project_link = gitlab_url.split('/')[-2] + '/' + gitlab_url.split('/')[-1].split('.')[0]
-        return project_link
+        return output.strip()
     except StopIteration:
         return -1
 
