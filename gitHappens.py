@@ -215,18 +215,19 @@ def main():
 
     # So it takes all text until first known argument
     title = " ".join(args.title)
-    
-    project_id = args.project_id or get_project_id()
 
-    milestone = get_milestone(args.milestone)
-
+    # Get settings for issue from template    
     selectedSettings = getIssueSettings(select_template())
+
+    project_id = args.project_id or selectedSettings.get('projectId') or get_project_id()
+
+    milestone = selectedSettings.get('epicId') or get_milestone(args.milestone)['id']
 
     epic = False
     if not args.no_epic:
         epic = get_epic()
 
-    createdIssue = createIssue(title, project_id, milestone['id'], epic, selectedSettings)
+    createdIssue = createIssue(title, project_id, milestone, epic, selectedSettings)
     print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
 
     createdBranch = create_branch(project_id, createdIssue)
