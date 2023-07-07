@@ -7,6 +7,7 @@ import inquirer
 import datetime
 import re
 import os
+import requests
 
 # Setup config parser and read settings
 config = configparser.ConfigParser()
@@ -15,6 +16,7 @@ config_path = os.path.join(absolute_config_path, 'configs/config.ini')
 config.read(config_path)
 GROUP_ID=config.get('DEFAULT', 'group_id')
 CUSTOM_TEMPLATE=config.get('DEFAULT', 'custom_template')
+GITLAB_TOKEN=config.get('DEFAULT', 'GITLAB_TOKEN')
 
 # Read templates from json config
 with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
@@ -22,19 +24,47 @@ with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f
 TEMPLATES = jsonConfig['templates']
 
 def get_project_id():
-    project_id = getProjectIdFromCurrentDir()
-    if project_id == -1:
-        project_id = enterProjectId()
-    return project_id
+    project_link = getProjectLinkFromCurrentDir()
+    if (project_link == -1):
+        return enterProjectId()
 
-def getProjectIdFromCurrentDir():
+    allProjects = get_all_projects()
+
+    # Find projects id by project ssh link gathered from repo
+    matching_id = None
+    for project in allProjects:
+        if project.get("ssh_url_to_repo") == project_link + '.git':
+            matching_id = project.get("id")
+            break
+
+    return matching_id
+
+
+    # return get_project_id_from_link(project_link)
+def get_all_projects():
+    url = "https://gitlab.com/api/v4/projects?owned=true"
+
+    headers = {
+        "PRIVATE-TOKEN": GITLAB_TOKEN
+    }
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Request failed with status code {response.status_code}")
+
+
+
+def getProjectLinkFromCurrentDir():
     try:
         cmd = 'git remote -v'
         result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
         output = result.stdout.decode('utf-8')
         gitlab_url = next(line.split()[1] for line in output.split('\n') if 'gitlab.com' in line)
-        project_id = gitlab_url.split('/')[-2] + '/' + gitlab_url.split('/')[-1].split('.')[0]
-        return project_id
+        project_link = gitlab_url.split('/')[-2] + '/' + gitlab_url.split('/')[-1].split('.')[0]
+        return project_link
     except StopIteration:
         return -1
 
@@ -78,22 +108,37 @@ def getIssueSettings(template_name):
         return []
     return next((t for t in TEMPLATES if t['name'] == template_name), None)
 
-def createIssue(title, project_id, milestoneId, epicId, settings):
+def createIssue(title, project_id, milestoneId, epic, settings):
     if settings:
         # if project is set in template use that
         project_id = settings['project_id'] if 'project_id' in settings else project_id
         name, weight, labels = settings.values()
-        return executeIssueCreate(project_id, title, labels, milestoneId, epicId, weight)
+        return executeIssueCreate(project_id, title, labels, milestoneId, epic, weight)
         
     
     # TODO: ask for each one
     print("no settings")
     pass
 
-def executeIssueCreate(project_id, title, labels, milestoneId, epicId, weight):
+def executeIssueCreate(project_id, title, labels, milestoneId, epic, weight):
     labels = ",".join(labels)
     assignee_id = getAuthorizedUser()['id']
-    issue_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/issues", "-f", f'title={title}', "-f", f'labels={labels}', "-f", f'milestone_id={str(milestoneId)}', "-f", f'weight={str(weight)}', "-f", f'assignee_ids={assignee_id}', "-f", f'epic_id={str(epicId)}'])
+    issue_command = [
+        "glab", "api",
+        f"/projects/{str(project_id)}/issues",
+        "-f", f'title={title}',
+        "-f", f'labels={labels}',
+        "-f", f'milestone_id={str(milestoneId)}',
+        "-f", f'weight={str(weight)}',
+        "-f", f'assignee_ids={assignee_id}',
+    ]
+
+    if epic:
+        epicId = epic['id']
+        issue_command.append("-f")
+        issue_command.append(f'epic_id={str(epicId)}')
+
+    issue_output = subprocess.check_output(issue_command)
     return json.loads(issue_output.decode())
 
 def select_milestone(milestones):
@@ -169,6 +214,7 @@ def main():
     parser.add_argument("title", nargs="+", help="Title of issue")
     parser.add_argument(f"--project_id", type=str, help="Id or URL-encoded path of project")
     parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manualy select milestone")
+    parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
 
     args = parser.parse_args()
 
@@ -176,15 +222,16 @@ def main():
     title = " ".join(args.title)
     
     project_id = args.project_id or get_project_id()
-    
 
     milestone = get_milestone(args.milestone)
 
     selectedSettings = getIssueSettings(select_template())
 
-    epic = get_epic()
+    epic = False
+    if not args.no_epic:
+        epic = get_epic()
 
-    createdIssue = createIssue(title, project_id, milestone['id'], epic['id'], selectedSettings)
+    createdIssue = createIssue(title, project_id, milestone['id'], epic, selectedSettings)
     print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
 
     createdBranch = create_branch(project_id, createdIssue)
