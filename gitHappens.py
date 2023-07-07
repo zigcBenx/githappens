@@ -37,8 +37,6 @@ def get_project_id():
             break
     return matching_id
 
-
-    # return get_project_id_from_link(project_link)
 def get_all_projects(project_link):
     url = "https://gitlab.com/api/v4/projects?membership=true&search=" + project_link.split('/')[-1].split('.')[0]
 
@@ -52,8 +50,6 @@ def get_all_projects(project_link):
         return response.json()
     else:
         print(f"Request failed with status code {response.status_code}")
-
-
 
 def getProjectLinkFromCurrentDir():
     try:

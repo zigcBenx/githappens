@@ -29,8 +29,8 @@ Group is set in config file: `config.ini` as `group_id`, this is required settin
 
 ## Project selection
 
-- Project selection is made automatically if you run script in same path as your project is located (not working yet).
-- You can specify project id or URL-encoded path as script argument e.g.: `python gitHappens.py --project_id=123456`
+- Project selection is made automatically if you run script in same path as your project is located.
+- You can specify project id or URL-encoded path as script argument e.g.: `--project_id=123456`
 - If no of steps above happen, program will prompt you with question about project_id
 
 ## Milestone selection
