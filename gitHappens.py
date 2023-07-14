@@ -208,9 +208,12 @@ def create_merge_request(project_id, branch, issue):
     mr_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/merge_requests", "-f", f'title={title}', "-f", f'description="Closes #{issueId}"', "-f", f'source_branch={branch}', "-f", 'target_branch=master', "-f", 'remove_source_branch=true', "-f", f'issue_iid={issueId}'])
     return json.loads(mr_output.decode())
 
-def startIssueCreation(project_id, title, milestone, epic, selectedSettings):
+def startIssueCreation(project_id, title, milestone, epic, selectedSettings, onlyIssue):
     createdIssue = createIssue(title, project_id, milestone, epic, selectedSettings)
     print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
+
+    if onlyIssue:
+        return
 
     createdBranch = create_branch(project_id, createdIssue)
 
@@ -230,6 +233,7 @@ def main():
     parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manualy select milestone")
     parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
     parser.add_argument("--no_milestone", action="store_true", help="Add this flag if you don't want to pick milestone")
+    parser.add_argument("--only_issue", action="store_true", help="Add this flag if you don't want to create merge request and branch alongside issue")
 
     # If no arguments passed, show help
     if len(sys.argv) <= 1:
@@ -261,13 +265,14 @@ def main():
     epic = False
     if not args.no_epic:
         epic = get_epic()
-
+    
+    onlyIssue = selectedSettings.get('onlyIssue') or args.only_issue
 
     if type(project_id) == list:
         for id in project_id:
-            startIssueCreation(id, title, milestone, epic, selectedSettings)
+            startIssueCreation(id, title, milestone, epic, selectedSettings, onlyIssue)
     else:
-        startIssueCreation(project_id, title, milestone, epic, selectedSettings)
+        startIssueCreation(project_id, title, milestone, epic, selectedSettings, onlyIssue)
 
 if __name__ == '__main__':
     main()

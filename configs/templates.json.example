@@ -1,9 +1,10 @@
 // Allowed keys:
-// name      String
-// weight    Number
-// labels    Array[String]
+// name       String
+// weight     Number
+// labels     Array[String]
 // projectIds Number
-// epicId    Number
+// epicId     Number
+// onlyIssue  Bool
 {
     "templates": [
       {
@@ -25,7 +26,8 @@
         "name": "Feature medium",
         "weight": 6,
         "labels": ["feature::Confirmed"],
-	      "projectIds": [123, 584]
+	      "projectIds": [123, 584],
+        "onlyIssue": true
       }
     ]
   }
