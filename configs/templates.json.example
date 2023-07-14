@@ -4,7 +4,7 @@
 // labels     Array[String]
 // projectIds Number
 // epicId     Number
-// issueOnly  Bool
+// onlyIssue  Bool
 {
     "templates": [
       {

@@ -212,7 +212,8 @@ def startIssueCreation(project_id, title, milestone, epic, selectedSettings, onl
     createdIssue = createIssue(title, project_id, milestone, epic, selectedSettings)
     print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
 
-    if onlyIssue: return
+    if onlyIssue:
+        return
 
     createdBranch = create_branch(project_id, createdIssue)
 
