@@ -106,25 +106,31 @@ def getIssueSettings(template_name):
 
 def createIssue(title, project_id, milestoneId, epic, settings):
     if settings:
-        # TODO: how to extract only if exists here
-        name, weight, labels = settings.values()
-        return executeIssueCreate(project_id, title, labels, milestoneId, epic, weight)
+        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, settings.get('weight'))
     print("No settings in template")
     exit(2)
     pass
 
 def executeIssueCreate(project_id, title, labels, milestoneId, epic, weight):
-    labels = ",".join(labels)
+    labels = ",".join(labels) if type(labels) == list else labels
     assignee_id = getAuthorizedUser()['id']
     issue_command = [
         "glab", "api",
         f"/projects/{str(project_id)}/issues",
         "-f", f'title={title}',
-        "-f", f'labels={labels}',
-        "-f", f'milestone_id={str(milestoneId)}',
-        "-f", f'weight={str(weight)}',
         "-f", f'assignee_ids={assignee_id}',
     ]
+    if labels:
+        issue_command.append("-f")
+        issue_command.append(f'labels={labels}')
+    
+    if weight:
+        issue_command.append("-f")
+        issue_command.append(f'weight={str(weight)}')
+
+    if milestoneId:
+        issue_command.append("-f")
+        issue_command.append(f'milestone_id={str(milestoneId)}')
 
     if epic:
         epicId = epic['id']
