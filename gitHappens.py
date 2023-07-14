@@ -264,12 +264,14 @@ def main():
     epic = False
     if not args.no_epic:
         epic = get_epic()
+    
+    onlyIssue = selectedSettings.get('onlyIssue') or args.only_issue
 
     if type(project_id) == list:
         for id in project_id:
-            startIssueCreation(id, title, milestone, epic, selectedSettings, args.only_issue)
+            startIssueCreation(id, title, milestone, epic, selectedSettings, onlyIssue)
     else:
-        startIssueCreation(project_id, title, milestone, epic, selectedSettings, args.only_issue)
+        startIssueCreation(project_id, title, milestone, epic, selectedSettings, onlyIssue)
 
 if __name__ == '__main__':
     main()

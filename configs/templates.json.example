@@ -1,9 +1,10 @@
 // Allowed keys:
-// name      String
-// weight    Number
-// labels    Array[String]
+// name       String
+// weight     Number
+// labels     Array[String]
 // projectIds Number
-// epicId    Number
+// epicId     Number
+// issueOnly  Bool
 {
     "templates": [
       {
