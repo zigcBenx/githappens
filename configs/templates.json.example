@@ -2,7 +2,7 @@
 // name      String
 // weight    Number
 // labels    Array[String]
-// projectId Number
+// projectIds Number
 // epicId    Number
 {
     "templates": [
@@ -24,7 +24,8 @@
       {
         "name": "Feature medium",
         "weight": 6,
-        "labels": ["feature::Confirmed"]
+        "labels": ["feature::Confirmed"],
+	      "projectIds": [123, 584]
       }
     ]
   }
