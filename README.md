@@ -56,5 +56,10 @@ If you don't want to include some settings you use following flags:
 - `--no_milestone` - no milestone will be selected or prompted
 
 
+## Only issue
+If you are in a hurry and want to create issue for later without merge request and branch this flag is for you.
+- `--only_issue` - no merge request nor branch will be created.
+You can achive same functionality with adding onlyIssue key to `templates.json` file (see example).
+
 ## Flag help
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and short explanation.
