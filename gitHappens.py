@@ -8,6 +8,7 @@ import datetime
 import re
 import os
 import requests
+import sys
 
 # Setup config parser and read settings
 config = configparser.ConfigParser()
@@ -100,19 +101,16 @@ def select_template():
 
 def getIssueSettings(template_name):
     if template_name == CUSTOM_TEMPLATE:
-        return []
+        return {}
     return next((t for t in TEMPLATES if t['name'] == template_name), None)
 
 def createIssue(title, project_id, milestoneId, epic, settings):
     if settings:
-        # if project is set in template use that
-        project_id = settings['project_id'] if 'project_id' in settings else project_id
+        # TODO: how to extract only if exists here
         name, weight, labels = settings.values()
         return executeIssueCreate(project_id, title, labels, milestoneId, epic, weight)
-        
-    
-    # TODO: ask for each one
-    print("no settings")
+    print("No settings in template")
+    exit(2)
     pass
 
 def executeIssueCreate(project_id, title, labels, milestoneId, epic, weight):
@@ -154,7 +152,7 @@ def get_milestone(manual):
     if manual:
         milestones = list_milestones()
         return getSelectedMilestone(select_milestone(milestones), milestones)
-    milestone = list_milestones(True)
+    milestone = list_milestones(True) # select active for today
     return milestone
 
 def getAuthorizedUser():
@@ -204,29 +202,7 @@ def create_merge_request(project_id, branch, issue):
     mr_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/merge_requests", "-f", f'title={title}', "-f", f'description="Closes #{issueId}"', "-f", f'source_branch={branch}', "-f", 'target_branch=master', "-f", 'remove_source_branch=true', "-f", f'issue_iid={issueId}'])
     return json.loads(mr_output.decode())
 
-def main():
-    parser = argparse.ArgumentParser("Argument desciprition of Git happens")
-    parser.add_argument("title", nargs="+", help="Title of issue")
-    parser.add_argument(f"--project_id", type=str, help="Id or URL-encoded path of project")
-    parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manualy select milestone")
-    parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
-
-    args = parser.parse_args()
-
-    # So it takes all text until first known argument
-    title = " ".join(args.title)
-
-    # Get settings for issue from template    
-    selectedSettings = getIssueSettings(select_template())
-
-    project_id = args.project_id or selectedSettings.get('projectId') or get_project_id()
-
-    milestone = selectedSettings.get('epicId') or get_milestone(args.milestone)['id']
-
-    epic = False
-    if not args.no_epic:
-        epic = get_epic()
-
+def startIssueCreation(project_id, title, milestone, epic, selectedSettings):
     createdIssue = createIssue(title, project_id, milestone, epic, selectedSettings)
     print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
 
@@ -241,6 +217,51 @@ def main():
     print("to switch to new branch.")
 
 
+def main():
+    parser = argparse.ArgumentParser("Argument desciprition of Git happens")
+    parser.add_argument("title", nargs="+", help="Title of issue")
+    parser.add_argument(f"--project_id", type=str, help="Id or URL-encoded path of project")
+    parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manualy select milestone")
+    parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
+    parser.add_argument("--no_milestone", action="store_true", help="Add this flag if you don't want to pick milestone")
+
+    # If no arguments passed, show help
+    if len(sys.argv) <= 1:
+        parser.print_help()
+        exit(1)
+    
+    args = parser.parse_args()
+
+    # So it takes all text until first known argument
+    title = " ".join(args.title)
+
+    # Get settings for issue from template    
+    selectedSettings = getIssueSettings(select_template())
+
+    # If template is False, ask for each settings
+    if not len(selectedSettings):
+        print('Custom selection of issue settings is not supported yet')
+        pass
+
+    if args.project_id and selectedSettings.get('projectIds'):
+        print('NOTE: Overwriting project id from argument...')
+    
+    project_id = selectedSettings.get('projectIds') or args.project_id or get_project_id()
+
+    milestone = False
+    if not args.no_milestone:
+        milestone = get_milestone(args.milestone)['id']
+
+    epic = False
+    if not args.no_epic:
+        epic = get_epic()
+
+
+    if type(project_id) == list:
+        for id in project_id:
+            startIssueCreation(id, title, milestone, epic, selectedSettings)
+    else:
+        startIssueCreation(project_id, title, milestone, epic, selectedSettings)
 
 if __name__ == '__main__':
     main()
