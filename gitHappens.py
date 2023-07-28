@@ -215,6 +215,7 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
         "-f", f'source_branch={branch}',
         "-f", 'target_branch=master',
         "-f", 'remove_source_branch=true',
+        "-f", 'squash=true',
         "-f", f'issue_iid={issueId}',
         "-f", f'assignee_ids={assignee_id}'
     ]
