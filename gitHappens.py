@@ -201,11 +201,33 @@ def create_branch(project_id, issue):
     branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", 'ref=master', "-f", f'issue_iid={issueId}'])
     return json.loads(branch_output.decode())
 
-def create_merge_request(project_id, branch, issue):
+def create_merge_request(project_id, branch, issue, labels, milestoneId):
     issueId = str(issue['iid'])
     branch = branch['name']
     title = issue['title']
-    mr_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/merge_requests", "-f", f'title={title}', "-f", f'description="Closes #{issueId}"', "-f", f'source_branch={branch}', "-f", 'target_branch=master', "-f", 'remove_source_branch=true', "-f", f'issue_iid={issueId}'])
+    assignee_id = getAuthorizedUser()['id']
+    labels = ",".join(labels) if type(labels) == list else labels
+    merge_request_command = [
+        "glab", "api",
+        f"/projects/{str(project_id)}/merge_requests",
+        "-f", f'title={title}',
+        "-f", f'description="Closes #{issueId}"',
+        "-f", f'source_branch={branch}',
+        "-f", 'target_branch=master',
+        "-f", 'remove_source_branch=true',
+        "-f", f'issue_iid={issueId}',
+        "-f", f'assignee_ids={assignee_id}'
+    ]
+
+    if labels:
+        merge_request_command.append("-f")
+        merge_request_command.append(f'labels={labels}')
+
+    if milestoneId:
+        merge_request_command.append("-f")
+        merge_request_command.append(f'milestone_id={str(milestoneId)}')
+
+    mr_output = subprocess.check_output(merge_request_command)
     return json.loads(mr_output.decode())
 
 def startIssueCreation(project_id, title, milestone, epic, selectedSettings, onlyIssue):
@@ -217,7 +239,7 @@ def startIssueCreation(project_id, title, milestone, epic, selectedSettings, onl
 
     createdBranch = create_branch(project_id, createdIssue)
 
-    createdMergeRequest = create_merge_request(project_id, createdBranch, createdIssue)
+    createdMergeRequest = create_merge_request(project_id, createdBranch, createdIssue, selectedSettings.get('labels'), milestone)
     print(f"Merge request #{createdMergeRequest['iid']}: {createdMergeRequest['title']} created.")
 
     print("Run:")
