@@ -15,9 +15,12 @@ config = configparser.ConfigParser()
 absolute_config_path = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(absolute_config_path, 'configs/config.ini')
 config.read(config_path)
-GROUP_ID=config.get('DEFAULT', 'group_id')
-CUSTOM_TEMPLATE=config.get('DEFAULT', 'custom_template')
-GITLAB_TOKEN=config.get('DEFAULT', 'GITLAB_TOKEN')
+
+GROUP_ID        = config.get('DEFAULT', 'group_id')
+CUSTOM_TEMPLATE = config.get('DEFAULT', 'custom_template')
+GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
+DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
+SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
 
 # Read templates from json config
 with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
