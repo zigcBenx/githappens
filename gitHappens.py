@@ -217,11 +217,17 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
         "-f", f'description="Closes #{issueId}"',
         "-f", f'source_branch={branch}',
         "-f", 'target_branch=master',
-        "-f", 'remove_source_branch=true',
-        "-f", 'squash=true',
         "-f", f'issue_iid={issueId}',
         "-f", f'assignee_ids={assignee_id}'
     ]
+
+    if SQUASH_COMMITS:
+        merge_request_command.append("f")
+        merge_request_command.append('squash=true')
+    
+    if DELETE_BRANCH:
+        merge_request_command.append("f")
+        merge_request_command.append('remove_source_branch=true')
 
     if labels:
         merge_request_command.append("-f")
