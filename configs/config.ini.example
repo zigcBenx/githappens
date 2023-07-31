@@ -2,3 +2,5 @@
 group_id=
 custom_template=Custom
 GITLAB_TOKEN=
+squash_commits=true
+delete_branch_after_merge=true

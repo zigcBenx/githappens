@@ -15,9 +15,12 @@ config = configparser.ConfigParser()
 absolute_config_path = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(absolute_config_path, 'configs/config.ini')
 config.read(config_path)
-GROUP_ID=config.get('DEFAULT', 'group_id')
-CUSTOM_TEMPLATE=config.get('DEFAULT', 'custom_template')
-GITLAB_TOKEN=config.get('DEFAULT', 'GITLAB_TOKEN')
+
+GROUP_ID        = config.get('DEFAULT', 'group_id')
+CUSTOM_TEMPLATE = config.get('DEFAULT', 'custom_template')
+GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
+DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
+SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
 
 # Read templates from json config
 with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
@@ -214,10 +217,17 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
         "-f", f'description="Closes #{issueId}"',
         "-f", f'source_branch={branch}',
         "-f", 'target_branch=master',
-        "-f", 'remove_source_branch=true',
         "-f", f'issue_iid={issueId}',
         "-f", f'assignee_ids={assignee_id}'
     ]
+
+    if SQUASH_COMMITS:
+        merge_request_command.append("-f")
+        merge_request_command.append("squash=true")
+
+    if DELETE_BRANCH:
+        merge_request_command.append("-f")
+        merge_request_command.append("remove_source_branch=true")
 
     if labels:
         merge_request_command.append("-f")

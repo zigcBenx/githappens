@@ -60,3 +60,8 @@ You can achive same functionality with adding onlyIssue key to `templates.json` 
 
 ## Flag help
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and short explanation.
+
+
+## Contributing
+Every contributor is welcome.
+I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/ee/api/merge_requests.html
