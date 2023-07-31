@@ -222,12 +222,12 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
     ]
 
     if SQUASH_COMMITS:
-        merge_request_command.append("f")
-        merge_request_command.append('squash=true')
-    
+        merge_request_command.append("-f")
+        merge_request_command.append("squash=true")
+
     if DELETE_BRANCH:
-        merge_request_command.append("f")
-        merge_request_command.append('remove_source_branch=true')
+        merge_request_command.append("-f")
+        merge_request_command.append("remove_source_branch=true")
 
     if labels:
         merge_request_command.append("-f")
