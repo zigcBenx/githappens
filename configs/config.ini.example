@@ -1,4 +1,5 @@
 [DEFAULT]
+base_url=https://gitlab.com
 group_id=
 custom_template=Custom
 GITLAB_TOKEN=
