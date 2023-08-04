@@ -58,6 +58,13 @@ If you are in a hurry and want to create issue for later without merge request a
 - `--only_issue` - no merge request nor branch will be created.
 You can achive same functionality with adding onlyIssue key to `templates.json` file (see example).
 
+
+## Open merge request in browser
+You can open merge request for current checked out branch in browser with command:
+```
+gh open
+```
+
 ## Flag help
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and short explanation.
 
