@@ -9,6 +9,7 @@ import re
 import os
 import requests
 import sys
+import webbrowser
 
 # Setup config parser and read settings
 config = configparser.ConfigParser()
@@ -16,6 +17,8 @@ absolute_config_path = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(absolute_config_path, 'configs/config.ini')
 config.read(config_path)
 
+BASE_URL        = config.get('DEFAULT', 'base_url')
+API_URL         = BASE_URL + '/api/v4'
 GROUP_ID        = config.get('DEFAULT', 'group_id')
 CUSTOM_TEMPLATE = config.get('DEFAULT', 'custom_template')
 GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
@@ -42,7 +45,7 @@ def get_project_id():
     return matching_id
 
 def get_all_projects(project_link):
-    url = "https://gitlab.com/api/v4/projects?membership=true&search=" + project_link.split('/')[-1].split('.')[0]
+    url = API_URL + "/projects?membership=true&search=" + project_link.split('/')[-1].split('.')[0]
 
     headers = {
         "PRIVATE-TOKEN": GITLAB_TOKEN
@@ -257,6 +260,40 @@ def startIssueCreation(project_id, title, milestone, epic, selectedSettings, onl
     print(f"         git checkout -b '{createdMergeRequest['source_branch']}' 'origin/{createdMergeRequest['source_branch']}'")
     print("to switch to new branch.")
 
+def getCurrentBranch():
+    return subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
+
+def openMergeRequestInBrowser():
+    try:
+        gitlab_project_id = get_project_id()
+        branch_to_find = getCurrentBranch()
+
+        merge_request_id = find_merge_request_id_by_branch(gitlab_project_id, branch_to_find)
+        remote_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip()
+        url = BASE_URL + '/' + remote_url.split(':')[1][:-4]
+        webbrowser.open(f"{url}/-/merge_requests/{merge_request_id}")
+    except subprocess.CalledProcessError:
+        return None
+
+
+def find_merge_request_id_by_branch(project_id, branch_name):
+    api_url = f"{API_URL}/projects/{project_id}/merge_requests"
+    headers = {"Private-Token": GITLAB_TOKEN}
+
+    params = {
+        "source_branch": branch_name,
+    }
+
+    response = requests.get(api_url, headers=headers, params=params)
+    if response.status_code == 200:
+        merge_requests = response.json()
+        for mr in merge_requests:
+            if mr["source_branch"] == branch_name:
+                return mr["iid"]
+    else:
+        print(f"Failed to fetch Merge Requests: {response.status_code} - {response.text}")
+    return None
+
 
 def main():
     parser = argparse.ArgumentParser("Argument desciprition of Git happens")
@@ -276,6 +313,9 @@ def main():
 
     # So it takes all text until first known argument
     title = " ".join(args.title)
+
+    if title.split()[0] == 'open':
+        openMergeRequestInBrowser()
 
     # Get settings for issue from template    
     selectedSettings = getIssueSettings(select_template())
