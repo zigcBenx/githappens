@@ -65,6 +65,14 @@ You can open merge request for current checked out branch in browser with comman
 gh open
 ```
 
+## Git review
+You can set default reviewers in templates.json (see example).
+To submit merge request into review run command:
+```
+gh review
+```
+
+
 ## Flag help
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and short explanation.
 
