@@ -29,6 +29,7 @@
 	      "projectIds": [123, 584],
         "onlyIssue": true
       }
-    ]
+    ],
+    "reviewers": [123, 456, 789]
   }
   
