@@ -29,6 +29,7 @@ SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
 with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
     jsonConfig = json.load(f)
 TEMPLATES = jsonConfig['templates']
+REVIEWERS = jsonConfig['reviewers']
 
 def get_project_id():
     project_link = getProjectLinkFromCurrentDir()
@@ -265,18 +266,19 @@ def getCurrentBranch():
 
 def openMergeRequestInBrowser():
     try:
-        gitlab_project_id = get_project_id()
-        branch_to_find = getCurrentBranch()
-
-        merge_request_id = find_merge_request_id_by_branch(gitlab_project_id, branch_to_find)
+        merge_request_id = getActiveMergeRequestId()
         remote_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip()
         url = BASE_URL + '/' + remote_url.split(':')[1][:-4]
         webbrowser.open(f"{url}/-/merge_requests/{merge_request_id}")
     except subprocess.CalledProcessError:
         return None
 
+def getActiveMergeRequestId():
+    branch_to_find = getCurrentBranch()
+    return find_merge_request_id_by_branch(branch_to_find)
 
-def find_merge_request_id_by_branch(project_id, branch_name):
+def find_merge_request_id_by_branch(branch_name):
+    project_id = get_project_id()
     api_url = f"{API_URL}/projects/{project_id}/merge_requests"
     headers = {"Private-Token": GITLAB_TOKEN}
 
@@ -293,6 +295,18 @@ def find_merge_request_id_by_branch(project_id, branch_name):
     else:
         print(f"Failed to fetch Merge Requests: {response.status_code} - {response.text}")
     return None
+
+def addReviewersToMergeRequest():
+    project_id = get_project_id()
+    mr_id = getActiveMergeRequestId()
+    api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}"
+    headers = {"Private-Token": GITLAB_TOKEN}
+
+    data = {
+        "reviewer_ids": REVIEWERS
+    }
+
+    requests.put(api_url, headers=headers, json=data)
 
 
 def main():
@@ -314,8 +328,12 @@ def main():
     # So it takes all text until first known argument
     title = " ".join(args.title)
 
-    if title.split()[0] == 'open':
+    if title == 'open':
         openMergeRequestInBrowser()
+        return
+    elif title == 'review':
+        addReviewersToMergeRequest()
+        return
 
     # Get settings for issue from template    
     selectedSettings = getIssueSettings(select_template())
