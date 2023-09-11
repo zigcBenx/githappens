@@ -88,7 +88,7 @@ def list_milestones(current=False):
         for milestone in milestones:
             start_date = milestone['start_date']
             due_date = milestone['due_date']
-            if start_date <= today and due_date >= today:
+            if start_date and due_date and start_date <= today and due_date >= today:
                 active_milestones.append(milestone)
         active_milestones.sort(key=lambda x: x['due_date'])
         return active_milestones[0]
