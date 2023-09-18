@@ -24,6 +24,7 @@ CUSTOM_TEMPLATE = config.get('DEFAULT', 'custom_template')
 GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
 DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
 SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
+MAIN_BRANCH     = 'master'
 
 # Read templates from json config
 with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
@@ -205,7 +206,7 @@ def create_branch(project_id, issue):
     issueId = str(issue['iid'])
     title = re.sub('\s+', '-', issue['title']).lower()
     title = issueId + '-' + title.replace(':','').replace('(',' ').replace(')', '').replace(' ','-')
-    branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", 'ref=master', "-f", f'issue_iid={issueId}'])
+    branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", f'ref={MAIN_BRANCH}', "-f", f'issue_iid={issueId}'])
     return json.loads(branch_output.decode())
 
 def create_merge_request(project_id, branch, issue, labels, milestoneId):
@@ -220,7 +221,7 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
         "-f", f'title={title}',
         "-f", f'description="Closes #{issueId}"',
         "-f", f'source_branch={branch}',
-        "-f", 'target_branch=master',
+        "-f", f'target_branch={MAIN_BRANCH}',
         "-f", f'issue_iid={issueId}',
         "-f", f'assignee_ids={assignee_id}'
     ]
@@ -308,6 +309,11 @@ def addReviewersToMergeRequest():
 
     requests.put(api_url, headers=headers, json=data)
 
+def getMainBranch():
+    command = "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
+    output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
+    return output.strip()
+
 
 def main():
     parser = argparse.ArgumentParser("Argument desciprition of Git happens")
@@ -355,6 +361,8 @@ def main():
     epic = False
     if not args.no_epic:
         epic = get_epic()
+
+    MAIN_BRANCH = getMainBranch()
     
     onlyIssue = selectedSettings.get('onlyIssue') or args.only_issue
 
