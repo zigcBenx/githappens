@@ -76,7 +76,7 @@ If you don't want to include some settings you use following flags:
 ### Only issue
 If you are in a hurry and want to create issue for later without merge request and branch this flag is for you.
 - `--only_issue` - no merge request nor branch will be created.
-You can achive same functionality with adding onlyIssue key to `templates.json` file (see example).
+You can achive same functionality with adding onlyIssue key to `templates.json` file.
 ```
 ...
 {
@@ -95,7 +95,18 @@ gh open
 ```
 
 ### Git review
-You can set default reviewers in templates.json (see example).
+You can set default reviewers in templates.json file.
+```
+...
+{
+  "templates": [
+    ...
+  ],
+  ...
+  "reviewers": [234, 456, 678]
+}
+...
+```
 To submit merge request into review run command:
 ```
 gh review
