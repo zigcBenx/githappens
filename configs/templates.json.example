@@ -23,7 +23,7 @@
         "labels": ["feature::Confirmed"]
       },
       {
-        "name": "Feature medium",
+        "name": "Feature medium BE + FE issue only",
         "weight": 6,
         "labels": ["feature::Confirmed"],
 	"projectIds": [123, 584],
