@@ -131,7 +131,7 @@ def executeIssueCreate(project_id, title, labels, milestoneId, epic, weight):
     if labels:
         issue_command.append("-f")
         issue_command.append(f'labels={labels}')
-    
+
     if weight:
         issue_command.append("-f")
         issue_command.append(f'weight={str(weight)}')
@@ -316,6 +316,8 @@ def getMainBranch():
 
 
 def main():
+    global MAIN_BRANCH
+
     parser = argparse.ArgumentParser("Argument desciprition of Git happens")
     parser.add_argument("title", nargs="+", help="Title of issue")
     parser.add_argument(f"--project_id", type=str, help="Id or URL-encoded path of project")
@@ -328,7 +330,7 @@ def main():
     if len(sys.argv) <= 1:
         parser.print_help()
         exit(1)
-    
+
     args = parser.parse_args()
 
     # So it takes all text until first known argument
@@ -341,7 +343,7 @@ def main():
         addReviewersToMergeRequest()
         return
 
-    # Get settings for issue from template    
+    # Get settings for issue from template
     selectedSettings = getIssueSettings(select_template())
 
     # If template is False, ask for each settings
@@ -351,7 +353,7 @@ def main():
 
     if args.project_id and selectedSettings.get('projectIds'):
         print('NOTE: Overwriting project id from argument...')
-    
+
     project_id = selectedSettings.get('projectIds') or args.project_id or get_project_id()
 
     milestone = False
@@ -363,7 +365,7 @@ def main():
         epic = get_epic()
 
     MAIN_BRANCH = getMainBranch()
-    
+
     onlyIssue = selectedSettings.get('onlyIssue') or args.only_issue
 
     if type(project_id) == list:
