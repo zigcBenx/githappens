@@ -261,6 +261,7 @@ def startIssueCreation(project_id, title, milestone, epic, selectedSettings, onl
     print("         git fetch origin")
     print(f"         git checkout -b '{createdMergeRequest['source_branch']}' 'origin/{createdMergeRequest['source_branch']}'")
     print("to switch to new branch.")
+    return createdMergeRequest['source_branch']
 
 def getCurrentBranch():
     return subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
@@ -314,6 +315,17 @@ def getMainBranch():
     output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
     return output.strip()
 
+def runGitCommand(command):
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        print(f"Error running command {command}: {e.stderr.strip()}")
+        return None
+
+def hasUncommittedChanges():
+    status = runGitCommand(["git", "status", "--porcelain"])
+    return status != ""
 
 def main():
     global MAIN_BRANCH
@@ -325,6 +337,7 @@ def main():
     parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
     parser.add_argument("--no_milestone", action="store_true", help="Add this flag if you don't want to pick milestone")
     parser.add_argument("--only_issue", action="store_true", help="Add this flag if you don't want to create merge request and branch alongside issue")
+    parser.add_argument("--auto_switch", action="store_true", help="Auto fetch and switch to new branch")
 
     # If no arguments passed, show help
     if len(sys.argv) <= 1:
@@ -368,11 +381,21 @@ def main():
 
     onlyIssue = selectedSettings.get('onlyIssue') or args.only_issue
 
+    sourceBranch = None
     if type(project_id) == list:
         for id in project_id:
             startIssueCreation(id, title, milestone, epic, selectedSettings, onlyIssue)
     else:
-        startIssueCreation(project_id, title, milestone, epic, selectedSettings, onlyIssue)
+        sourceBranch = startIssueCreation(project_id, title, milestone, epic, selectedSettings, onlyIssue)
+
+
+    if args.auto_switch and hasUncommittedChanges and sourceBranch:
+        print("You have uncommitted changes. Cannot switch to new branch.")
+        return
+
+    if args.auto_switch and sourceBranch :
+        runGitCommand(["git", "fetch", "origin"])
+        runGitCommand(["git", "checkout", "-b", sourceBranch, f"origin/{sourceBranch}"])
 
 if __name__ == '__main__':
     main()
