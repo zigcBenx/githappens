@@ -89,7 +89,7 @@ You can achive same functionality with adding onlyIssue key to `templates.json` 
 
 
 ### Open merge request in browser
-You can open existing merge request for current checked out branch in browser with command:
+You can open merge request for current checked out branch in browser with command:
 ```
 gh open
 ```
