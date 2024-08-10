@@ -120,3 +120,6 @@ If you run just `gh` (or whatever alias you set) or `gh --help` you will see all
 ## Contributing 🫂
 Every contributor is welcome.
 I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/ee/api/merge_requests.html
+
+## Donating
+Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens)
