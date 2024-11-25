@@ -112,14 +112,14 @@ def getIssueSettings(template_name):
         return {}
     return next((t for t in TEMPLATES if t['name'] == template_name), None)
 
-def createIssue(title, project_id, milestoneId, epic, settings):
+def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
-        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, settings.get('weight'))
+        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'))
     print("No settings in template")
     exit(2)
     pass
 
-def executeIssueCreate(project_id, title, labels, milestoneId, epic, weight):
+def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight):
     labels = ",".join(labels) if type(labels) == list else labels
     assignee_id = getAuthorizedUser()['id']
     issue_command = [
@@ -145,6 +145,14 @@ def executeIssueCreate(project_id, title, labels, milestoneId, epic, weight):
         issue_command.append("-f")
         issue_command.append(f'epic_id={str(epicId)}')
 
+    # Set the description, including iteration info
+    description = ""
+    if iteration:
+        iterationId = iteration['id']
+        description += f"*Iteration:* {iterationId}\n"
+
+    issue_command.extend(["-f", f'description={description}'])
+
     issue_output = subprocess.check_output(issue_command)
     return json.loads(issue_output.decode())
 
@@ -168,6 +176,42 @@ def get_milestone(manual):
         return getSelectedMilestone(select_milestone(milestones), milestones)
     milestone = list_milestones(True) # select active for today
     return milestone
+
+def get_iteration(manual):
+    if manual:
+        iterations = list_iterations()
+        return getSelectedIteration(select_iteration(iterations), iterations)
+    return list_iterations(True)
+
+def getSelectedIteration(iteration, iterations):
+    return next((t for t in iterations if t['start_date'] + ' - ' + t['due_date'] == iteration), None)
+
+def select_iteration(iterations):
+    iterations = [t['start_date'] + ' - ' + t['due_date'] for t in iterations]
+    questions = [
+        inquirer.List('iterations',
+                      message="Select iteration:",
+                      choices=iterations,
+                      ),
+    ]
+    answer = inquirer.prompt(questions)
+    return answer['iterations']
+
+def list_iterations(current=False):
+    cmd = f'glab api /groups/{GROUP_ID}/iterations?state=opened'
+    result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
+    iterations = json.loads(result.stdout)
+    if current:
+        today = datetime.date.today().strftime('%Y-%m-%d')
+        active_iterations = []
+        for iteration in iterations:
+            start_date = iteration['start_date']
+            due_date = iteration['due_date']
+            if start_date and due_date and start_date <= today and due_date >= today:
+                active_iterations.append(iteration)
+        active_iterations.sort(key=lambda x: x['due_date'])
+        return active_iterations[0]
+    return iterations
 
 def getAuthorizedUser():
     output = subprocess.check_output(["glab", "api", "/user"])
@@ -245,8 +289,8 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
     mr_output = subprocess.check_output(merge_request_command)
     return json.loads(mr_output.decode())
 
-def startIssueCreation(project_id, title, milestone, epic, selectedSettings, onlyIssue):
-    createdIssue = createIssue(title, project_id, milestone, epic, selectedSettings)
+def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue):
+    createdIssue = createIssue(title, project_id, milestone, epic, iteration, selectedSettings)
     print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
 
     if onlyIssue:
@@ -324,6 +368,7 @@ def main():
     parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manualy select milestone")
     parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
     parser.add_argument("--no_milestone", action="store_true", help="Add this flag if you don't want to pick milestone")
+    parser.add_argument("--no_iteration", action="store_true", help="Add this flag if you don't want to pick iteration")
     parser.add_argument("--only_issue", action="store_true", help="Add this flag if you don't want to create merge request and branch alongside issue")
 
     # If no arguments passed, show help
@@ -360,6 +405,11 @@ def main():
     if not args.no_milestone:
         milestone = get_milestone(args.milestone)['id']
 
+    iteration = False
+    if not args.no_iteration:
+        # manual pick iteration
+        iteration = get_iteration(True)
+
     epic = False
     if not args.no_epic:
         epic = get_epic()
@@ -370,9 +420,9 @@ def main():
 
     if type(project_id) == list:
         for id in project_id:
-            startIssueCreation(id, title, milestone, epic, selectedSettings, onlyIssue)
+            startIssueCreation(id, title, milestone, epic, iteration, selectedSettings, onlyIssue)
     else:
-        startIssueCreation(project_id, title, milestone, epic, selectedSettings, onlyIssue)
+        startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue)
 
 if __name__ == '__main__':
     main()
