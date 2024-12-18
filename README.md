@@ -138,7 +138,7 @@ If you run just `gh` (or whatever alias you set) or `gh --help` you will see all
 If you get `glab: 401 Unauthorized (HTTP 401)` when using githappens, you must repeat `glab auth login`
 and then reopen your terminal.
 
-## Contributing 🫂🫶
+## Contributing 🫂🫶❤️
 
 Every contributor is welcome.
 I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/ee/api/merge_requests.html
