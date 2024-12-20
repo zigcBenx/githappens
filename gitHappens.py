@@ -149,7 +149,7 @@ def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, 
     description = ""
     if iteration:
         iterationId = iteration['id']
-        description += f"*Iteration:* {iterationId}\n"
+        description += f"/iteration *iteration:{str(iterationId)} "
 
     issue_command.extend(["-f", f'description={description}'])
 
