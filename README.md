@@ -135,7 +135,7 @@ If you run just `gh` (or whatever alias you set) or `gh --help` you will see all
 
 ### Recieving 401 Unauthorized error
 
-If you get `glab: 401 Unauthorized (HTTP 401)` when using gitHappens, you must repeat `glab auth login`
+If you get `glab: 401 Unauthorized (HTTP 401)` when using GitHappens, you must repeat `glab auth login`
 and then reopen your terminal.
 
 ## Contributing 🫂🫶
