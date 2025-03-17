@@ -359,6 +359,13 @@ def getMainBranch():
     return output.strip()
 
 
+def get_two_weeks_commits():
+    two_weeks_ago = (datetime.datetime.now() - datetime.timedelta(weeks=2)).strftime('%Y-%m-%d')
+    cmd = f'git log --since={two_weeks_ago} --format="%ad - %s" --date=short | grep -v "Merge branch"'
+    output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
+    print(output)
+
+
 def main():
     global MAIN_BRANCH
 
@@ -386,6 +393,9 @@ def main():
         return
     elif title == 'review':
         addReviewersToMergeRequest()
+        return
+    elif title == 'summary':
+        get_two_weeks_commits()
         return
 
     # Get settings for issue from template
