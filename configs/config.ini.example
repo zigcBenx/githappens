@@ -6,3 +6,4 @@ GITLAB_TOKEN=
 squash_commits=true
 delete_branch_after_merge=true
 developer_email="<someone@mail.com>"
+OPENAI_API_KEY=<your_openai_api_key>
