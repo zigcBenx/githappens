@@ -23,6 +23,7 @@ GROUP_ID        = config.get('DEFAULT', 'group_id')
 CUSTOM_TEMPLATE = config.get('DEFAULT', 'custom_template')
 GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
 DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
+DEVELOPER_USERNAME   = config.get('DEFAULT', 'developer_username')
 SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
 MAIN_BRANCH     = 'master'
 
@@ -361,9 +362,21 @@ def getMainBranch():
 
 def get_two_weeks_commits():
     two_weeks_ago = (datetime.datetime.now() - datetime.timedelta(weeks=2)).strftime('%Y-%m-%d')
-    cmd = f'git log --since={two_weeks_ago} --format="%ad - %s" --date=short | grep -v "Merge branch"'
-    output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-    print(output)
+
+    cmd = f'git log --since={two_weeks_ago} --format="%ad - %ae - %s" --date=short | grep -v "Merge branch"'
+    if (DEVELOPER_USERNAME):
+        cmd = f'{cmd} | grep {DEVELOPER_USERNAME}'
+
+    try:
+        output = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.DEVNULL, universal_newlines=True).strip()
+        if output:
+            print(output)
+        else:
+            print("No commits found.")
+    except subprocess.CalledProcessError as e:
+        print(f"No commits were found or an error occurred. (exit status {e.returncode})")
+    except FileNotFoundError:
+        print("Git is not installed or not found in PATH.")
 
 
 def main():
