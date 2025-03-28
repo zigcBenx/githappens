@@ -434,8 +434,23 @@ def process_report(text, minutes):
     try:
         # Create the incident issue
         created_issue = createIssue(issue_title, incident_project_id, False, False, False, incident_settings)
-        print(f"Incident issue #{created_issue['iid']} created successfully.")
+        issue_iid = created_issue['iid']
+        print(f"Incident issue #{issue_iid} created successfully.")
         print(f"Title: {issue_title}")
+
+        # Add time tracking to the issue
+        time_tracking_command = [
+            "glab", "api", 
+            f"/projects/{incident_project_id}/issues/{issue_iid}/add_spent_time",
+            "-f", f"duration={minutes}m"
+        ]
+        
+        try:
+            subprocess.run(time_tracking_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print(f"Added {minutes} minutes to issue time tracking.")
+        except subprocess.CalledProcessError as e:
+            print(f"Error adding time tracking: {str(e)}")
+
     except Exception as e:
         print(f"Error creating incident issue: {str(e)}")
 
