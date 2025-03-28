@@ -411,15 +411,41 @@ def generate_smart_summary():
     except Exception as e:
         print(f"Error generating summary: {str(e)}")
 
+def process_report(text, minutes):
+    # Get the incident project ID from config
+    try:
+        incident_project_id = config.get('DEFAULT', 'incident_project_id')
+    except (configparser.NoOptionError, configparser.NoSectionError):
+        print("Error: incident_project_id not found in config.ini")
+        print("Please add your incident project ID to configs/config.ini under [DEFAULT] section:")
+        print("incident_project_id = your_project_id_here")
+        return
 
+    # Prepare issue title and description
+    issue_title = f"Incident Report: {text}"
+    issue_description = f"Incident Details:\n\n- Description: {text}\n- Duration: {minutes} minutes"
+
+    # Create issue settings for the incident
+    incident_settings = {
+        'labels': ['incident', 'report'],
+        'onlyIssue': True  # Only create issue, no branch or merge request
+    }
+
+    try:
+        # Create the incident issue
+        created_issue = createIssue(issue_title, incident_project_id, False, False, False, incident_settings)
+        print(f"Incident issue #{created_issue['iid']} created successfully.")
+        print(f"Title: {issue_title}")
+    except Exception as e:
+        print(f"Error creating incident issue: {str(e)}")
 
 def main():
     global MAIN_BRANCH
 
-    parser = argparse.ArgumentParser("Argument desciprition of Git happens")
+    parser = argparse.ArgumentParser("Argument description of Git happens")
     parser.add_argument("title", nargs="+", help="Title of issue")
     parser.add_argument(f"--project_id", type=str, help="Id or URL-encoded path of project")
-    parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manualy select milestone")
+    parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manually select milestone")
     parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
     parser.add_argument("--no_milestone", action="store_true", help="Add this flag if you don't want to pick milestone")
     parser.add_argument("--no_iteration", action="store_true", help="Add this flag if you don't want to pick iteration")
@@ -431,6 +457,19 @@ def main():
         exit(1)
 
     args = parser.parse_args()
+    if args.title[0] == 'report':
+        parts = args.title
+        if len(parts) != 3:
+            print("Invalid report format. Use: gh report \"text\" minutes")
+            return
+
+        text = parts[1]
+        try:
+            minutes = int(parts[2].strip())
+            process_report(text, minutes)
+        except ValueError:
+            print("Invalid minutes. Please provide a valid number.")
+        return
 
     # So it takes all text until first known argument
     title = " ".join(args.title)
