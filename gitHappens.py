@@ -116,12 +116,12 @@ def getIssueSettings(template_name):
 
 def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
-        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'))
+        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'))
     print("No settings in template")
     exit(2)
     pass
 
-def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight):
+def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight, estimated_time):
     labels = ",".join(labels) if type(labels) == list else labels
     assignee_id = getAuthorizedUser()['id']
     issue_command = [
@@ -147,11 +147,14 @@ def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, 
         issue_command.append("-f")
         issue_command.append(f'epic_id={str(epicId)}')
 
-    # Set the description, including iteration info
+    # Set the description, including iteration, estimated time, and other info
     description = ""
     if iteration:
         iterationId = iteration['id']
         description += f"/iteration *iteration:{str(iterationId)} "
+
+    if estimated_time:
+        description += f"\n/estimate {estimated_time}m "
 
     issue_command.extend(["-f", f'description={description}'])
 
@@ -292,11 +295,29 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
     return json.loads(mr_output.decode())
 
 def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue):
+    # Prompt for estimated time
+    estimated_time = inquirer.prompt([
+        inquirer.Text('estimated_time',
+                      message='Estimated time to complete this issue (in minutes, optional)',
+                      validate=lambda _, x: x == '' or x.isdigit())
+    ])['estimated_time']
+
+    # If multiple project IDs, split the estimated time
+    if isinstance(project_id, list):
+        estimated_time_per_project = int(estimated_time) / len(project_id) if estimated_time else None
+    else:
+        estimated_time_per_project = estimated_time
+
+    # Modify settings to include estimated time
+    if estimated_time_per_project:
+        selectedSettings = selectedSettings.copy() if selectedSettings else {}
+        selectedSettings['estimated_time'] = int(estimated_time_per_project)
+
     createdIssue = createIssue(title, project_id, milestone, epic, iteration, selectedSettings)
     print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
 
     if onlyIssue:
-        return
+        return createdIssue
 
     createdBranch = create_branch(project_id, createdIssue)
 
@@ -307,6 +328,8 @@ def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSe
     print("         git fetch origin")
     print(f"         git checkout -b '{createdMergeRequest['source_branch']}' 'origin/{createdMergeRequest['source_branch']}'")
     print("to switch to new branch.")
+
+    return createdIssue
 
 def getCurrentBranch():
     return subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
