@@ -10,7 +10,6 @@ import os
 import requests
 import sys
 import webbrowser
-import openai
 
 # Setup config parser and read settings
 config = configparser.ConfigParser()
@@ -116,12 +115,12 @@ def getIssueSettings(template_name):
 
 def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
-        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'))
+        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'))
     print("No settings in template")
     exit(2)
     pass
 
-def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight):
+def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight, estimated_time):
     labels = ",".join(labels) if type(labels) == list else labels
     assignee_id = getAuthorizedUser()['id']
     issue_command = [
@@ -147,11 +146,14 @@ def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, 
         issue_command.append("-f")
         issue_command.append(f'epic_id={str(epicId)}')
 
-    # Set the description, including iteration info
+    # Set the description, including iteration, estimated time, and other info
     description = ""
     if iteration:
         iterationId = iteration['id']
         description += f"/iteration *iteration:{str(iterationId)} "
+
+    if estimated_time:
+        description += f"\n/estimate {estimated_time}m "
 
     issue_command.extend(["-f", f'description={description}'])
 
@@ -292,11 +294,29 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
     return json.loads(mr_output.decode())
 
 def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue):
+    # Prompt for estimated time
+    estimated_time = inquirer.prompt([
+        inquirer.Text('estimated_time',
+                      message='Estimated time to complete this issue (in minutes, optional)',
+                      validate=lambda _, x: x == '' or x.isdigit())
+    ])['estimated_time']
+
+    # If multiple project IDs, split the estimated time
+    if isinstance(project_id, list):
+        estimated_time_per_project = int(estimated_time) / len(project_id) if estimated_time else None
+    else:
+        estimated_time_per_project = estimated_time
+
+    # Modify settings to include estimated time
+    if estimated_time_per_project:
+        selectedSettings = selectedSettings.copy() if selectedSettings else {}
+        selectedSettings['estimated_time'] = int(estimated_time_per_project)
+
     createdIssue = createIssue(title, project_id, milestone, epic, iteration, selectedSettings)
     print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
 
     if onlyIssue:
-        return
+        return createdIssue
 
     createdBranch = create_branch(project_id, createdIssue)
 
@@ -307,6 +327,8 @@ def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSe
     print("         git fetch origin")
     print(f"         git checkout -b '{createdMergeRequest['source_branch']}' 'origin/{createdMergeRequest['source_branch']}'")
     print("to switch to new branch.")
+
+    return createdIssue
 
 def getCurrentBranch():
     return subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
@@ -325,20 +347,23 @@ def getActiveMergeRequestId():
     return find_merge_request_id_by_branch(branch_to_find)
 
 def find_merge_request_id_by_branch(branch_name):
+    return getMergeRequestForBranch(branch_name)['iid']
+
+def getMergeRequestForBranch(branchName):
     project_id = get_project_id()
     api_url = f"{API_URL}/projects/{project_id}/merge_requests"
     headers = {"Private-Token": GITLAB_TOKEN}
 
     params = {
-        "source_branch": branch_name,
+        "source_branch": branchName,
     }
 
     response = requests.get(api_url, headers=headers, params=params)
     if response.status_code == 200:
         merge_requests = response.json()
         for mr in merge_requests:
-            if mr["source_branch"] == branch_name:
-                return mr["iid"]
+            if mr["source_branch"] == branchName:
+                return mr
     else:
         print(f"Failed to fetch Merge Requests: {response.status_code} - {response.text}")
     return None
@@ -388,13 +413,20 @@ def generate_smart_summary():
     if not commits:
         return
 
-    try:
-        openai.api_key = config.get('DEFAULT', 'OPENAI_API_KEY')
-    except (configparser.NoOptionError, configparser.NoSectionError):
-        print("Error: OPENAI_API_KEY not found in config.ini")
-        print("Please add your OpenAI API key to configs/config.ini under [DEFAULT] section:")
-        print("OPENAI_API_KEY = your_api_key_here")
+    # Check if OpenAI API key is set
+    openai_api_key = config.get('DEFAULT', 'OPENAI_API_KEY', fallback=None)
+    if not openai_api_key:
+        print("OpenAI API key not set. Skipping AI summary generation.")
         return
+
+    # Dynamically import openai only if API key is present
+    try:
+        import openai
+    except ImportError:
+        print("OpenAI package not installed. Please install it using: pip install openai")
+        return
+
+    openai.api_key = openai_api_key
 
     try:
         response = openai.chat.completions.create(
@@ -407,19 +439,94 @@ def generate_smart_summary():
         
         print("\n📋 AI-Generated Summary of Recent Changes:\n")
         print(response.choices[0].message.content)
-        
     except Exception as e:
-        print(f"Error generating summary: {str(e)}")
+        print(f"Error generating AI summary: {e}")
 
+def process_report(text, minutes):
+    # Get the incident project ID from config
+    try:
+        incident_project_id = config.get('DEFAULT', 'incident_project_id')
+    except (configparser.NoOptionError, configparser.NoSectionError):
+        print("Error: incident_project_id not found in config.ini")
+        print("Please add your incident project ID to configs/config.ini under [DEFAULT] section:")
+        print("incident_project_id = your_project_id_here")
+        return
 
+    # Prepare issue title and description
+    issue_title = f"Incident Report: {text}"
+    issue_description = f"Incident Details:\n\n- Description: {text}\n- Duration: {minutes} minutes"
+
+    # Create issue settings for the incident
+    incident_settings = {
+        'labels': ['incident', 'report'],
+        'onlyIssue': True  # Only create issue, no branch or merge request
+    }
+
+    try:
+        # Create the incident issue
+        created_issue = createIssue(issue_title, incident_project_id, False, False, False, incident_settings)
+        issue_iid = created_issue['iid']
+        print(f"Incident issue #{issue_iid} created successfully.")
+        print(f"Title: {issue_title}")
+
+        # Add time tracking to the issue
+        time_tracking_command = [
+            "glab", "api", 
+            f"/projects/{incident_project_id}/issues/{issue_iid}/add_spent_time",
+            "-f", f"duration={minutes}m"
+        ]
+        
+        try:
+            subprocess.run(time_tracking_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print(f"Added {minutes} minutes to issue time tracking.")
+        except subprocess.CalledProcessError as e:
+            print(f"Error adding time tracking: {str(e)}")
+
+    except Exception as e:
+        print(f"Error creating incident issue: {str(e)}")
+
+def getCurrentIssueId():
+    mr = getMergeRequestForBranch(getCurrentBranch())
+    return mr['description'].replace('"','').replace('#','').split()[1]
+
+def track_issue_time():
+    # Get the current merge request
+    try:
+        project_id = get_project_id()
+        issue_id = getCurrentIssueId()
+    except Exception as e:
+        print(f"Error getting issue details: {str(e)}")
+        return
+
+    # Prompt for actual time spent
+    spent_time = inquirer.prompt([
+        inquirer.Text('spent_time',
+                      message='How many minutes did you actually spend on this issue?',
+                      validate=lambda _, x: x.isdigit())
+    ])['spent_time']
+
+    # Add spent time to the issue description
+    time_tracking_command = [
+        "glab", "api",
+        f"/projects/{project_id}/issues/{issue_id}/notes",
+        "-f", f"body=/spend {spent_time}m"
+    ]
+
+    try:
+        subprocess.run(time_tracking_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        print(f"Added {spent_time} minutes to issue {issue_id} time tracking.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error adding time tracking: {str(e)}")
+    except Exception as e:
+        print(f"Error tracking issue time: {str(e)}")
 
 def main():
     global MAIN_BRANCH
 
-    parser = argparse.ArgumentParser("Argument desciprition of Git happens")
+    parser = argparse.ArgumentParser("Argument description of Git happens")
     parser.add_argument("title", nargs="+", help="Title of issue")
     parser.add_argument(f"--project_id", type=str, help="Id or URL-encoded path of project")
-    parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manualy select milestone")
+    parser.add_argument("-m", "--milestone", action='store_true', help="Add this flag, if you want to manually select milestone")
     parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
     parser.add_argument("--no_milestone", action="store_true", help="Add this flag if you don't want to pick milestone")
     parser.add_argument("--no_iteration", action="store_true", help="Add this flag if you don't want to pick iteration")
@@ -431,6 +538,19 @@ def main():
         exit(1)
 
     args = parser.parse_args()
+    if args.title[0] == 'report':
+        parts = args.title
+        if len(parts) != 3:
+            print("Invalid report format. Use: gh report \"text\" minutes")
+            return
+
+        text = parts[1]
+        try:
+            minutes = int(parts[2].strip())
+            process_report(text, minutes)
+        except ValueError:
+            print("Invalid minutes. Please provide a valid number.")
+        return
 
     # So it takes all text until first known argument
     title = " ".join(args.title)
@@ -439,6 +559,7 @@ def main():
         openMergeRequestInBrowser()
         return
     elif title == 'review':
+        track_issue_time()
         addReviewersToMergeRequest()
         return
     elif title == 'summary':
