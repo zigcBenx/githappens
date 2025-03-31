@@ -10,7 +10,6 @@ import os
 import requests
 import sys
 import webbrowser
-import openai
 
 # Setup config parser and read settings
 config = configparser.ConfigParser()
@@ -414,13 +413,20 @@ def generate_smart_summary():
     if not commits:
         return
 
-    try:
-        openai.api_key = config.get('DEFAULT', 'OPENAI_API_KEY')
-    except (configparser.NoOptionError, configparser.NoSectionError):
-        print("Error: OPENAI_API_KEY not found in config.ini")
-        print("Please add your OpenAI API key to configs/config.ini under [DEFAULT] section:")
-        print("OPENAI_API_KEY = your_api_key_here")
+    # Check if OpenAI API key is set
+    openai_api_key = config.get('DEFAULT', 'OPENAI_API_KEY', fallback=None)
+    if not openai_api_key:
+        print("OpenAI API key not set. Skipping AI summary generation.")
         return
+
+    # Dynamically import openai only if API key is present
+    try:
+        import openai
+    except ImportError:
+        print("OpenAI package not installed. Please install it using: pip install openai")
+        return
+
+    openai.api_key = openai_api_key
 
     try:
         response = openai.chat.completions.create(
@@ -433,9 +439,8 @@ def generate_smart_summary():
         
         print("\n📋 AI-Generated Summary of Recent Changes:\n")
         print(response.choices[0].message.content)
-        
     except Exception as e:
-        print(f"Error generating summary: {str(e)}")
+        print(f"Error generating AI summary: {e}")
 
 def process_report(text, minutes):
     # Get the incident project ID from config
