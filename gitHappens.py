@@ -252,7 +252,7 @@ def get_epic():
 
 def create_branch(project_id, issue):
     issueId = str(issue['iid'])
-    title = re.sub('\s+', '-', issue['title']).lower()
+    title = re.sub('\\s+', '-', issue['title']).lower()
     title = issueId + '-' + title.replace(':','').replace('(',' ').replace(')', '').replace(' ','-')
     branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", f'ref={MAIN_BRANCH}', "-f", f'issue_iid={issueId}'])
     return json.loads(branch_output.decode())
@@ -436,7 +436,7 @@ def generate_smart_summary():
                 {"role": "user", "content": f"Please summarize these git commits in a clear, bulleted format:\n\n{commits}"}
             ]
         )
-        
+
         print("\n📋 AI-Generated Summary of Recent Changes:\n")
         print(response.choices[0].message.content)
     except Exception as e:
@@ -471,11 +471,11 @@ def process_report(text, minutes):
 
         # Add time tracking to the issue
         time_tracking_command = [
-            "glab", "api", 
+            "glab", "api",
             f"/projects/{incident_project_id}/issues/{issue_iid}/add_spent_time",
             "-f", f"duration={minutes}m"
         ]
-        
+
         try:
             subprocess.run(time_tracking_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             print(f"Added {minutes} minutes to issue time tracking.")
