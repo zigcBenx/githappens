@@ -454,14 +454,17 @@ def process_report(text, minutes):
         print("incident_project_id = your_project_id_here")
         return
 
-    # Prepare issue title and description
     issue_title = f"Incident Report: {text}"
 
-    # Create issue settings for the incident
+    selected_label = selectLabels('Department')
+
     incident_settings = {
         'labels': ['incident', 'report'],
         'onlyIssue': True
     }
+
+    if selected_label:
+        incident_settings['labels'].append(selected_label)
 
     try:
         # Create the incident issue
@@ -500,6 +503,30 @@ def closeOpenedIssue(issue_iid, project_id):
         subprocess.run(issue_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         print(f"Error closing issue: {str(e)}")
+
+def selectLabels(search, multiple = False):
+    labels = getLabelsOfGroup(search)
+    labels = sorted([t['name'] for t in labels])
+    
+    question_type = inquirer.Checkbox if multiple else inquirer.List
+    questions = [
+        question_type(
+            'labels',
+            message="Select one or more department labels:",
+            choices=labels,
+        ),
+    ]
+    answer = inquirer.prompt(questions)
+    return answer['labels']
+
+def getLabelsOfGroup(search=''):
+    cmd = f'glab api /groups/{GROUP_ID}/labels?search={search}'
+    try:
+        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting labels: {str(e)}")
+        return []
 
 def getCurrentIssueId():
     mr = getMergeRequestForBranch(getCurrentBranch())
