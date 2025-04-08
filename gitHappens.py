@@ -185,7 +185,7 @@ def get_iteration(manual):
     if manual:
         iterations = list_iterations()
         return getSelectedIteration(select_iteration(iterations), iterations)
-    return list_iterations(True)
+    return getActiveIteration()
 
 def getSelectedIteration(iteration, iterations):
     return next((t for t in iterations if t['start_date'] + ' - ' + t['due_date'] == iteration), None)
@@ -201,21 +201,23 @@ def select_iteration(iterations):
     answer = inquirer.prompt(questions)
     return answer['iterations']
 
-def list_iterations(current=False):
+def list_iterations():
     cmd = f'glab api /groups/{GROUP_ID}/iterations?state=opened'
     result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
     iterations = json.loads(result.stdout)
-    if current:
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        active_iterations = []
-        for iteration in iterations:
-            start_date = iteration['start_date']
-            due_date = iteration['due_date']
-            if start_date and due_date and start_date <= today and due_date >= today:
-                active_iterations.append(iteration)
-        active_iterations.sort(key=lambda x: x['due_date'])
-        return active_iterations[0]
     return iterations
+
+def getActiveIteration():
+    iterations = list_iterations()
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    active_iterations = []
+    for iteration in iterations:
+        start_date = iteration['start_date']
+        due_date = iteration['due_date']
+        if start_date and due_date and start_date <= today and due_date >= today:
+            active_iterations.append(iteration)
+    active_iterations.sort(key=lambda x: x['due_date'])
+    return active_iterations[0]
 
 def getAuthorizedUser():
     output = subprocess.check_output(["glab", "api", "/user"])
@@ -463,7 +465,8 @@ def process_report(text, minutes):
 
     try:
         # Create the incident issue
-        created_issue = createIssue(issue_title, incident_project_id, False, False, False, incident_settings)
+        iteration = getActiveIteration()
+        created_issue = createIssue(issue_title, incident_project_id, False, False, iteration, incident_settings)
         issue_iid = created_issue['iid']
 
         closeOpenedIssue(issue_iid, incident_project_id)
