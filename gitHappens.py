@@ -454,18 +454,19 @@ def process_report(text, minutes):
 
     # Prepare issue title and description
     issue_title = f"Incident Report: {text}"
-    issue_description = f"Incident Details:\n\n- Description: {text}\n- Duration: {minutes} minutes"
 
     # Create issue settings for the incident
     incident_settings = {
         'labels': ['incident', 'report'],
-        'onlyIssue': True  # Only create issue, no branch or merge request
+        'onlyIssue': True
     }
 
     try:
         # Create the incident issue
         created_issue = createIssue(issue_title, incident_project_id, False, False, False, incident_settings)
         issue_iid = created_issue['iid']
+
+        closeOpenedIssue(issue_iid, incident_project_id)
         print(f"Incident issue #{issue_iid} created successfully.")
         print(f"Title: {issue_title}")
 
@@ -484,6 +485,18 @@ def process_report(text, minutes):
 
     except Exception as e:
         print(f"Error creating incident issue: {str(e)}")
+
+def closeOpenedIssue(issue_iid, project_id):
+    issue_command = [
+        "glab", "api",
+        f"/projects/{project_id}/issues/{issue_iid}",
+        '-X', 'PUT',
+        '-f', 'state_event=close'
+    ]
+    try:
+        subprocess.run(issue_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        print(f"Error closing issue: {str(e)}")
 
 def getCurrentIssueId():
     mr = getMergeRequestForBranch(getCurrentBranch())
