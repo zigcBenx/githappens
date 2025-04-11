@@ -115,12 +115,13 @@ def getIssueSettings(template_name):
 
 def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
-        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'))
+        issueType = settings.get('type') or 'issue'
+        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'), issueType)
     print("No settings in template")
     exit(2)
     pass
 
-def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight, estimated_time):
+def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight, estimated_time, issue_type='issue'):
     labels = ",".join(labels) if type(labels) == list else labels
     assignee_id = getAuthorizedUser()['id']
     issue_command = [
@@ -128,6 +129,7 @@ def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, 
         f"/projects/{str(project_id)}/issues",
         "-f", f'title={title}',
         "-f", f'assignee_ids={assignee_id}',
+        "-f", f'issue_type={issue_type}'
     ]
     if labels:
         issue_command.append("-f")
@@ -460,7 +462,8 @@ def process_report(text, minutes):
 
     incident_settings = {
         'labels': ['incident', 'report'],
-        'onlyIssue': True
+        'onlyIssue': True,
+        'type': 'incident'
     }
 
     if selected_label:
