@@ -384,6 +384,22 @@ def addReviewersToMergeRequest():
 
     requests.put(api_url, headers=headers, json=data)
 
+def setMergeRequestToAutoMerge():
+    project_id = get_project_id()
+    mr_id = getActiveMergeRequestId()
+    api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}/merge"
+    headers = {"Private-Token": GITLAB_TOKEN}
+
+    data = {
+        "id": project_id,
+        "merge_request_iid": mr_id,
+        "should_remove_source_branch": True,
+        "merge_when_pipeline_succeeds": True,
+        "auto_merge_strategy": "merge_when_pipeline_succeeds",
+    }
+
+    requests.put(api_url, headers=headers, json=data)
+
 def getMainBranch():
     command = "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
     output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
@@ -577,6 +593,7 @@ def main():
     parser.add_argument("--no_milestone", action="store_true", help="Add this flag if you don't want to pick milestone")
     parser.add_argument("--no_iteration", action="store_true", help="Add this flag if you don't want to pick iteration")
     parser.add_argument("--only_issue", action="store_true", help="Add this flag if you don't want to create merge request and branch alongside issue")
+    parser.add_argument("-am", "--auto_merge", action="store_true", help="Add this flag to review if you want to set merge request to auto merge when pipeline succeeds")
 
     # If no arguments passed, show help
     if len(sys.argv) <= 1:
@@ -607,6 +624,8 @@ def main():
     elif title == 'review':
         track_issue_time()
         addReviewersToMergeRequest()
+        if(args.auto_merge):
+            setMergeRequestToAutoMerge()
         return
     elif title == 'summary':
         get_two_weeks_commits()
