@@ -115,12 +115,13 @@ def getIssueSettings(template_name):
 
 def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
-        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'))
+        issueType = settings.get('type') or 'issue'
+        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'), issueType)
     print("No settings in template")
     exit(2)
     pass
 
-def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight, estimated_time):
+def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight, estimated_time, issue_type='issue'):
     labels = ",".join(labels) if type(labels) == list else labels
     assignee_id = getAuthorizedUser()['id']
     issue_command = [
@@ -128,6 +129,7 @@ def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, 
         f"/projects/{str(project_id)}/issues",
         "-f", f'title={title}',
         "-f", f'assignee_ids={assignee_id}',
+        "-f", f'issue_type={issue_type}'
     ]
     if labels:
         issue_command.append("-f")
@@ -185,7 +187,7 @@ def get_iteration(manual):
     if manual:
         iterations = list_iterations()
         return getSelectedIteration(select_iteration(iterations), iterations)
-    return list_iterations(True)
+    return getActiveIteration()
 
 def getSelectedIteration(iteration, iterations):
     return next((t for t in iterations if t['start_date'] + ' - ' + t['due_date'] == iteration), None)
@@ -201,21 +203,23 @@ def select_iteration(iterations):
     answer = inquirer.prompt(questions)
     return answer['iterations']
 
-def list_iterations(current=False):
+def list_iterations():
     cmd = f'glab api /groups/{GROUP_ID}/iterations?state=opened'
     result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
     iterations = json.loads(result.stdout)
-    if current:
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        active_iterations = []
-        for iteration in iterations:
-            start_date = iteration['start_date']
-            due_date = iteration['due_date']
-            if start_date and due_date and start_date <= today and due_date >= today:
-                active_iterations.append(iteration)
-        active_iterations.sort(key=lambda x: x['due_date'])
-        return active_iterations[0]
     return iterations
+
+def getActiveIteration():
+    iterations = list_iterations()
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    active_iterations = []
+    for iteration in iterations:
+        start_date = iteration['start_date']
+        due_date = iteration['due_date']
+        if start_date and due_date and start_date <= today and due_date >= today:
+            active_iterations.append(iteration)
+    active_iterations.sort(key=lambda x: x['due_date'])
+    return active_iterations[0]
 
 def getAuthorizedUser():
     output = subprocess.check_output(["glab", "api", "/user"])
@@ -375,12 +379,12 @@ def addReviewersToMergeRequest():
     headers = {"Private-Token": GITLAB_TOKEN}
 
     data = {
-        "reviewer_ids": REVIEWERS,
+        "reviewer_ids": REVIEWERS
     }
 
     requests.put(api_url, headers=headers, json=data)
 
-def setMergeRequestToMerge():
+def setMergeRequestToAutoMerge():
     project_id = get_project_id()
     mr_id = getActiveMergeRequestId()
     api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}/merge"
@@ -394,7 +398,7 @@ def setMergeRequestToMerge():
         "auto_merge_strategy": "merge_when_pipeline_succeeds",
     }
 
-    response = requests.put(api_url, headers=headers, json=data)
+    requests.put(api_url, headers=headers, json=data)
 
 def getMainBranch():
     command = "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
@@ -468,20 +472,26 @@ def process_report(text, minutes):
         print("incident_project_id = your_project_id_here")
         return
 
-    # Prepare issue title and description
     issue_title = f"Incident Report: {text}"
-    issue_description = f"Incident Details:\n\n- Description: {text}\n- Duration: {minutes} minutes"
 
-    # Create issue settings for the incident
+    selected_label = selectLabels('Department')
+
     incident_settings = {
         'labels': ['incident', 'report'],
-        'onlyIssue': True  # Only create issue, no branch or merge request
+        'onlyIssue': True,
+        'type': 'incident'
     }
+
+    if selected_label:
+        incident_settings['labels'].append(selected_label)
 
     try:
         # Create the incident issue
-        created_issue = createIssue(issue_title, incident_project_id, False, False, False, incident_settings)
+        iteration = getActiveIteration()
+        created_issue = createIssue(issue_title, incident_project_id, False, False, iteration, incident_settings)
         issue_iid = created_issue['iid']
+
+        closeOpenedIssue(issue_iid, incident_project_id)
         print(f"Incident issue #{issue_iid} created successfully.")
         print(f"Title: {issue_title}")
 
@@ -500,6 +510,42 @@ def process_report(text, minutes):
 
     except Exception as e:
         print(f"Error creating incident issue: {str(e)}")
+
+def closeOpenedIssue(issue_iid, project_id):
+    issue_command = [
+        "glab", "api",
+        f"/projects/{project_id}/issues/{issue_iid}",
+        '-X', 'PUT',
+        '-f', 'state_event=close'
+    ]
+    try:
+        subprocess.run(issue_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        print(f"Error closing issue: {str(e)}")
+
+def selectLabels(search, multiple = False):
+    labels = getLabelsOfGroup(search)
+    labels = sorted([t['name'] for t in labels])
+    
+    question_type = inquirer.Checkbox if multiple else inquirer.List
+    questions = [
+        question_type(
+            'labels',
+            message="Select one or more department labels:",
+            choices=labels,
+        ),
+    ]
+    answer = inquirer.prompt(questions)
+    return answer['labels']
+
+def getLabelsOfGroup(search=''):
+    cmd = f'glab api /groups/{GROUP_ID}/labels?search={search}'
+    try:
+        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting labels: {str(e)}")
+        return []
 
 def getCurrentIssueId():
     mr = getMergeRequestForBranch(getCurrentBranch())
@@ -548,6 +594,7 @@ def main():
     parser.add_argument("--no_iteration", action="store_true", help="Add this flag if you don't want to pick iteration")
     parser.add_argument("--only_issue", action="store_true", help="Add this flag if you don't want to create merge request and branch alongside issue")
     parser.add_argument("-am", "--auto_merge", action="store_true", help="Add this flag to review if you want to set merge request to auto merge when pipeline succeeds")
+
     # If no arguments passed, show help
     if len(sys.argv) <= 1:
         parser.print_help()
@@ -578,7 +625,7 @@ def main():
         track_issue_time()
         addReviewersToMergeRequest()
         if(args.auto_merge):
-            setMergeRequestToMerge()
+            setMergeRequestToAutoMerge()
         return
     elif title == 'summary':
         get_two_weeks_commits()
