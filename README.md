@@ -127,7 +127,7 @@ To submit merge request into review run command:
 gh review
 ```
 
-To also enable **auto-merge when the pipeline succeeds**, add the `--auto_merge` flag:
+To also enable **auto-merge when the pipeline succeeds**, add `--auto_merge` or `-am` flag:
 
 ```
 gh review –-auto_merge
