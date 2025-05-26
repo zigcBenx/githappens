@@ -33,6 +33,34 @@ with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f
 TEMPLATES = jsonConfig['templates']
 REVIEWERS = jsonConfig['reviewers']
 
+def choose_reviewers_manually():
+    """Prompt the user to select reviewers manually from the available list."""
+    questions = [
+        inquirer.Checkbox(
+            "selected_reviewers",
+            message="Select reviewers",
+            choices=[str(r) for r in REVIEWERS],
+        )
+    ]
+    answers = inquirer.prompt(questions)
+    if answers and "selected_reviewers" in answers:
+        return [int(r) for r in answers["selected_reviewers"]]
+    else:
+        return []
+
+def addReviewersToMergeRequest(selected_reviewers=None):
+    project_id = get_project_id()
+    mr_id = getActiveMergeRequestId()
+    api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}"
+    headers = {"Private-Token": GITLAB_TOKEN}
+
+    data = {
+        "reviewer_ids": selected_reviewers if selected_reviewers is not None else REVIEWERS
+    }
+
+    requests.put(api_url, headers=headers, json=data)
+
+
 def get_project_id():
     project_link = getProjectLinkFromCurrentDir()
     if (project_link == -1):
@@ -594,6 +622,7 @@ def main():
     parser.add_argument("--no_iteration", action="store_true", help="Add this flag if you don't want to pick iteration")
     parser.add_argument("--only_issue", action="store_true", help="Add this flag if you don't want to create merge request and branch alongside issue")
     parser.add_argument("-am", "--auto_merge", action="store_true", help="Add this flag to review if you want to set merge request to auto merge when pipeline succeeds")
+    parser.add_argument("--select", action="store_true", help="Manually select reviewers for merge request (interactive)")
 
     # If no arguments passed, show help
     if len(sys.argv) <= 1:
@@ -623,7 +652,10 @@ def main():
         return
     elif title == 'review':
         track_issue_time()
-        addReviewersToMergeRequest()
+        reviewers = None
+        if getattr(args, "select", False):
+            reviewers = choose_reviewers_manually()
+        addReviewersToMergeRequest(selected_reviewers=reviewers)
         if(args.auto_merge):
             setMergeRequestToAutoMerge()
         return

@@ -134,6 +134,15 @@ gh review –-auto_merge
 
 gh review -am
 ```
+### Manually selecting reviewers
+
+To manually select reviewers for your merge request, use the `--select` flag with the review command:
+
+```
+gh review --select
+```
+
+You will be prompted with an interactive list of reviewers to choose from.
 
 ### Flag help
 
