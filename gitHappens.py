@@ -372,7 +372,7 @@ def getMergeRequestForBranch(branchName):
         print(f"Failed to fetch Merge Requests: {response.status_code} - {response.text}")
     return None
 
-def choose_reviewers_manually():
+def chooseReviewersManually():
     """Prompt the user to select reviewers manually from the available list, showing names."""
     # Fetch user details for each reviewer ID
     reviewer_choices = []
@@ -657,7 +657,7 @@ def main():
         track_issue_time()
         reviewers = None
         if getattr(args, "select", False):
-            reviewers = choose_reviewers_manually()
+            reviewers = chooseReviewersManually()
         addReviewersToMergeRequest(reviewers=reviewers)
         if(args.auto_merge):
             setMergeRequestToAutoMerge()
