@@ -373,12 +373,28 @@ def getMergeRequestForBranch(branchName):
     return None
 
 def choose_reviewers_manually():
-    """Prompt the user to select reviewers manually from the available list."""
+    """Prompt the user to select reviewers manually from the available list, showing names."""
+    # Fetch user details for each reviewer ID
+    reviewer_choices = []
+    for reviewer_id in REVIEWERS:
+        api_url = f"{API_URL}/users/{reviewer_id}"
+        headers = {"Private-Token": GITLAB_TOKEN}
+        try:
+            response = requests.get(api_url, headers=headers)
+            if response.status_code == 200:
+                user = response.json()
+                display_name = f"{user.get('name')} ({user.get('username')})"
+                reviewer_choices.append((display_name, reviewer_id))
+            else:
+                reviewer_choices.append((str(reviewer_id), reviewer_id))
+        except Exception:
+            reviewer_choices.append((str(reviewer_id), reviewer_id))
+
     questions = [
         inquirer.Checkbox(
             "selected_reviewers",
             message="Select reviewers",
-            choices=[str(r) for r in REVIEWERS],
+            choices=[(name, str(rid)) for name, rid in reviewer_choices],
         )
     ]
     answers = inquirer.prompt(questions)
