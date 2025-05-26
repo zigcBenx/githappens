@@ -372,14 +372,45 @@ def getMergeRequestForBranch(branchName):
         print(f"Failed to fetch Merge Requests: {response.status_code} - {response.text}")
     return None
 
-def addReviewersToMergeRequest():
+def chooseReviewersManually():
+    """Prompt the user to select reviewers manually from the available list, showing names."""
+    # Fetch user details for each reviewer ID
+    reviewer_choices = []
+    for reviewer_id in REVIEWERS:
+        api_url = f"{API_URL}/users/{reviewer_id}"
+        headers = {"Private-Token": GITLAB_TOKEN}
+        try:
+            response = requests.get(api_url, headers=headers)
+            if response.status_code == 200:
+                user = response.json()
+                display_name = f"{user.get('name')} ({user.get('username')})"
+                reviewer_choices.append((display_name, reviewer_id))
+            else:
+                reviewer_choices.append((str(reviewer_id), reviewer_id))
+        except Exception:
+            reviewer_choices.append((str(reviewer_id), reviewer_id))
+
+    questions = [
+        inquirer.Checkbox(
+            "selected_reviewers",
+            message="Select reviewers",
+            choices=[(name, str(rid)) for name, rid in reviewer_choices],
+        )
+    ]
+    answers = inquirer.prompt(questions)
+    if answers and "selected_reviewers" in answers:
+        return [int(r) for r in answers["selected_reviewers"]]
+    else:
+        return []
+
+def addReviewersToMergeRequest(reviewers=None):
     project_id = get_project_id()
     mr_id = getActiveMergeRequestId()
     api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}"
     headers = {"Private-Token": GITLAB_TOKEN}
 
     data = {
-        "reviewer_ids": REVIEWERS
+        "reviewer_ids": reviewers if reviewers is not None else REVIEWERS
     }
 
     requests.put(api_url, headers=headers, json=data)
@@ -594,6 +625,7 @@ def main():
     parser.add_argument("--no_iteration", action="store_true", help="Add this flag if you don't want to pick iteration")
     parser.add_argument("--only_issue", action="store_true", help="Add this flag if you don't want to create merge request and branch alongside issue")
     parser.add_argument("-am", "--auto_merge", action="store_true", help="Add this flag to review if you want to set merge request to auto merge when pipeline succeeds")
+    parser.add_argument("--select", action="store_true", help="Manually select reviewers for merge request (interactive)")
 
     # If no arguments passed, show help
     if len(sys.argv) <= 1:
@@ -623,7 +655,10 @@ def main():
         return
     elif title == 'review':
         track_issue_time()
-        addReviewersToMergeRequest()
+        reviewers = None
+        if getattr(args, "select", False):
+            reviewers = chooseReviewersManually()
+        addReviewersToMergeRequest(reviewers=reviewers)
         if(args.auto_merge):
             setMergeRequestToAutoMerge()
         return
