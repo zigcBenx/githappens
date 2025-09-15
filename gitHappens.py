@@ -25,6 +25,9 @@ GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
 DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
 DEVELOPER_EMAIL = config.get('DEFAULT', 'developer_email', fallback=None)
 SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
+PRODUCTION_PIPELINE_NAME = config.get('DEFAULT', 'production_pipeline_name', fallback='deploy')
+PRODUCTION_JOB_NAME = config.get('DEFAULT', 'production_job_name', fallback=None)
+PRODUCTION_REF = config.get('DEFAULT', 'production_ref', fallback=None)
 MAIN_BRANCH     = 'master'
 
 # Read templates from json config
