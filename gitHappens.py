@@ -631,8 +631,8 @@ def get_last_production_deploy():
         }
 
         # Add ref filter if specified in config
-        if PRODUCTION_REF:
-            params["ref"] = PRODUCTION_REF
+        if MAIN_BRANCH:
+            params["ref"] = MAIN_BRANCH
         else:
             # Use main branch if no specific ref is configured
             try:
@@ -690,8 +690,7 @@ def get_last_production_deploy():
                     break
 
         if not production_pipeline:
-            print(f"No production deployment found matching pattern '{PRODUCTION_PIPELINE_NAME}'")
-            print("Consider updating the 'production_pipeline_name' setting in your config.ini")
+            print(f"No production deployment found matching pattern")
             return
 
         # Display the results
