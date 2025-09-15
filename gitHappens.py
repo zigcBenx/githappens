@@ -25,9 +25,6 @@ GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
 DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
 DEVELOPER_EMAIL = config.get('DEFAULT', 'developer_email', fallback=None)
 SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
-PRODUCTION_PIPELINE_NAME = config.get('DEFAULT', 'production_pipeline_name', fallback='deploy')
-PRODUCTION_JOB_NAME = config.get('DEFAULT', 'production_job_name', fallback=None)
-PRODUCTION_REF = config.get('DEFAULT', 'production_ref', fallback=None)
 MAIN_BRANCH     = 'master'
 
 # Read templates from json config
@@ -631,8 +628,8 @@ def get_last_production_deploy():
         }
 
         # Add ref filter if specified in config
-        if PRODUCTION_REF:
-            params["ref"] = PRODUCTION_REF
+        if MAIN_BRANCH:
+            params["ref"] = MAIN_BRANCH
         else:
             # Use main branch if no specific ref is configured
             try:
@@ -690,8 +687,7 @@ def get_last_production_deploy():
                     break
 
         if not production_pipeline:
-            print(f"No production deployment found matching pattern '{PRODUCTION_PIPELINE_NAME}'")
-            print("Consider updating the 'production_pipeline_name' setting in your config.ini")
+            print(f"No production deployment found matching pattern")
             return
 
         # Display the results

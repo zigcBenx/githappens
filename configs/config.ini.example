@@ -8,6 +8,3 @@ delete_branch_after_merge=true
 developer_email="<someone@mail.com>"
 OPENAI_API_KEY=<your_openai_api_key>
 incident_project_id=<your_incident_project_id>
-production_pipeline_name=deploy
-production_job_name=
-production_ref=
