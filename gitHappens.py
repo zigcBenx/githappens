@@ -25,6 +25,9 @@ GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
 DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
 DEVELOPER_EMAIL = config.get('DEFAULT', 'developer_email', fallback=None)
 SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
+PRODUCTION_PIPELINE_NAME = config.get('DEFAULT', 'production_pipeline_name', fallback='deploy')
+PRODUCTION_JOB_NAME = config.get('DEFAULT', 'production_job_name', fallback=None)
+PRODUCTION_REF = config.get('DEFAULT', 'production_ref', fallback=None)
 MAIN_BRANCH     = 'master'
 
 # Read templates from json config
@@ -32,6 +35,7 @@ with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f
     jsonConfig = json.load(f)
 TEMPLATES = jsonConfig['templates']
 REVIEWERS = jsonConfig['reviewers']
+PRODUCTION_MAPPINGS = jsonConfig.get('productionMappings', {})
 
 def get_project_id():
     project_link = getProjectLinkFromCurrentDir()
@@ -613,6 +617,117 @@ def track_issue_time():
     except Exception as e:
         print(f"Error tracking issue time: {str(e)}")
 
+def get_last_production_deploy():
+    try:
+        project_id = get_project_id()
+        api_url = f"{API_URL}/projects/{project_id}/pipelines"
+        headers = {"Private-Token": GITLAB_TOKEN}
+
+        # Set up parameters for the pipeline search
+        params = {
+            "per_page": 50,
+            "order_by": "updated_at",
+            "sort": "desc"
+        }
+
+        # Add ref filter if specified in config
+        if PRODUCTION_REF:
+            params["ref"] = PRODUCTION_REF
+        else:
+            # Use main branch if no specific ref is configured
+            try:
+                main_branch = getMainBranch()
+                params["ref"] = main_branch
+            except:
+                # Fallback to common main branch names
+                params["ref"] = "main"
+
+        response = requests.get(api_url, headers=headers, params=params)
+
+        if response.status_code != 200:
+            print(f"Failed to fetch pipelines: {response.status_code} - {response.text}")
+            return
+
+        pipelines = response.json()
+        production_pipeline = None
+
+        # Look for production pipeline by name pattern
+        for pipeline in pipelines:
+            # Get pipeline details to check jobs
+            pipeline_detail_url = f"{API_URL}/projects/{project_id}/pipelines/{pipeline['id']}/jobs"
+            detail_response = requests.get(pipeline_detail_url, headers=headers)
+
+            if detail_response.status_code == 200:
+                jobs = detail_response.json()
+
+                # Check if this pipeline contains production deployment
+                for job in jobs:
+                    job_name = job.get('name', '')
+                    stage = job.get('stage', '')
+                    job_status = job.get('status', '').lower()
+
+                    # Only consider successful jobs
+                    if job_status != 'success':
+                        continue
+
+                    # Check project-specific mapping first
+                    project_mapping = PRODUCTION_MAPPINGS.get(str(project_id))
+                    if project_mapping:
+                        expected_stage = project_mapping.get('stage', '').lower()
+                        expected_job = project_mapping.get('job', '').lower()
+
+                        if (stage.lower() == expected_stage or
+                            (expected_job and job_name.lower() == expected_job)):
+                            production_pipeline = {
+                                'pipeline': pipeline,
+                                'production_job': job
+                            }
+                            break
+                    else:
+                        print('Didn\'t find deployment pipeline')
+
+                if production_pipeline:
+                    break
+
+        if not production_pipeline:
+            print(f"No production deployment found matching pattern '{PRODUCTION_PIPELINE_NAME}'")
+            print("Consider updating the 'production_pipeline_name' setting in your config.ini")
+            return
+
+        # Display the results
+        pipeline = production_pipeline['pipeline']
+        job = production_pipeline['production_job']
+
+        print(f"🚀 Last Production Deployment:")
+        print(f"   Pipeline: #{pipeline['id']} - {pipeline['status']}")
+        print(f"   Job: {job['name']} ({job['status']})")
+        print(f"   Branch/Tag: {pipeline['ref']}")
+        print(f"   Started: {job.get('started_at', 'N/A')}")
+        print(f"   Finished: {job.get('finished_at', 'N/A')}")
+        print(f"   Duration: {job.get('duration', 'N/A')} seconds" if job.get('duration') else "   Duration: N/A")
+        print(f"   Commit: {pipeline['sha'][:8]}")
+        print(f"   URL: {pipeline['web_url']}")
+
+        # Show time since deployment
+        if job.get('finished_at'):
+            try:
+                finished_time = datetime.datetime.fromisoformat(job['finished_at'].replace('Z', '+00:00'))
+                time_diff = datetime.datetime.now(datetime.timezone.utc) - finished_time
+
+                if time_diff.days > 0:
+                    print(f"   ⏰ {time_diff.days} days ago")
+                elif time_diff.seconds > 3600:
+                    hours = time_diff.seconds // 3600
+                    print(f"   ⏰ {hours} hours ago")
+                else:
+                    minutes = time_diff.seconds // 60
+                    print(f"   ⏰ {minutes} minutes ago")
+            except:
+                pass
+
+    except Exception as e:
+        print(f"Error fetching last production deploy: {str(e)}")
+
 def main():
     global MAIN_BRANCH
 
@@ -667,6 +782,9 @@ def main():
         return
     elif title == 'summaryAI':
         generate_smart_summary()
+        return
+    elif title == 'last deploy':
+        get_last_production_deploy()
         return
 
     # Get settings for issue from template

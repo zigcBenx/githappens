@@ -127,6 +127,7 @@ To submit merge request into review run command:
 gh review
 ```
 
+<<<<<<< Updated upstream
 To also enable **auto-merge when the pipeline succeeds**, add `--auto_merge` or `-am` flag:
 
 ```
@@ -143,6 +144,40 @@ gh review --select
 ```
 
 You will be prompted with an interactive list of reviewers to choose from.
+=======
+### Last production deployment
+
+You can check when the last successful production deployment occurred:
+
+```
+gh last deploy
+```
+
+This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
+
+#### Configuration
+
+To configure production deployment detection, add project-specific mappings to your `templates.json`:
+
+```json
+{
+  "templates": [...],
+  "reviewers": [...],
+  "productionMappings": {
+    "your_project_id": {
+      "stage": "production:deploy",
+      "job": "deploy-to-production"
+    },
+    "another_project_id": {
+      "stage": "deploy",
+      "job": "production:deploy"
+    }
+  }
+}
+```
+
+**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
+>>>>>>> Stashed changes
 
 ### Flag help
 

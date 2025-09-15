@@ -30,6 +30,16 @@
         "onlyIssue": true
       }
     ],
-    "reviewers": [123, 456, 789]
+    "reviewers": [123, 456, 789],
+    "productionMappings": {
+      "9418557": {
+        "stage": "deploy",
+        "job": "production:deploy"
+      },
+      "10682806": {
+        "stage": "deploy",
+        "job": "production:deploy"
+      }
+    }
   }
   
