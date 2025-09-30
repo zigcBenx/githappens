@@ -21,7 +21,7 @@ BASE_URL        = config.get('DEFAULT', 'base_url')
 API_URL         = BASE_URL + '/api/v4'
 GROUP_ID        = config.get('DEFAULT', 'group_id')
 CUSTOM_TEMPLATE = config.get('DEFAULT', 'custom_template')
-GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN')
+GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN').strip('\"\'')
 DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
 DEVELOPER_EMAIL = config.get('DEFAULT', 'developer_email', fallback=None)
 SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
@@ -62,8 +62,13 @@ def get_all_projects(project_link):
 
     if response.status_code == 200:
         return response.json()
+    elif response.status_code == 401:
+        print("Error: Unauthorized (401). Your GitLab token is probably expired, invalid, or missing required permissions.")
+        print("Please generate a new token and update your configs/config.ini.")
+        exit(1)
     else:
         print(f"Request failed with status code {response.status_code}")
+        return None
 
 def getProjectLinkFromCurrentDir():
     try:
