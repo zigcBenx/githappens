@@ -1,10 +1,8 @@
 <div align="center">
   <h1>GitHappens⚡</h1>
 
-Githappens is a powerful and versatile open-source command-line interface (CLI) tool designed to streamline your GitLab workflow. <br>
-Whether you're managing one project or several, this tool offers a range of features to make issue and merge request management a breeze.
-
-  <div align="right">- ChatGPT</div>
+  <h2>CLI that lets you open merge requests, file issues, and request reviews without leaving your terminal</h2>
+  ![githappensDemo](https://github.com/user-attachments/assets/f18c0f04-edef-467c-b833-019643642beb)
 </div>
 
 ## Getting started 🚀
