@@ -1,6 +1,5 @@
 <div align="center">
   <h1>GitHappens⚡</h1>
-
   <h2>CLI that lets you open merge requests, file issues, and request reviews without leaving your terminal</h2>
   <img src="https://github.com/user-attachments/assets/f18c0f04-edef-467c-b833-019643642beb" alt="GitHappens demo" />
 </div>
