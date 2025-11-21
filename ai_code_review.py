@@ -91,22 +91,24 @@ def get_openai_client():
 
     api_key = config.get('DEFAULT', 'OPENAI_API_KEY', fallback=None)
     if not api_key:
-        print(f"{Colors.CRITICAL}✗ OpenAI API key not set in configs/config.ini{Colors.RESET}")
-        print(f"{Colors.DIM}Add: OPENAI_API_KEY = your_key_here{Colors.RESET}")
-        sys.exit(1)
+        print(f"{Colors.HIGH}⚠ OpenAI API key not set in configs/config.ini{Colors.RESET}")
+        print(f"{Colors.DIM}  Add: OPENAI_API_KEY = your_key_here{Colors.RESET}")
+        return None
 
     try:
         import openai
         openai.api_key = api_key
         return openai
     except ImportError:
-        print(f"{Colors.CRITICAL}✗ OpenAI package not installed{Colors.RESET}")
-        print(f"{Colors.DIM}Install: pip install openai{Colors.RESET}")
-        sys.exit(1)
+        print(f"{Colors.HIGH}⚠ OpenAI package not installed{Colors.RESET}")
+        print(f"{Colors.DIM}  Install: pip install openai{Colors.RESET}")
+        return None
 
 def review_code(diff_content):
     """Send code diff to OpenAI for review."""
     openai = get_openai_client()
+    if not openai:
+        return None
 
     try:
         response = openai.chat.completions.create(
@@ -123,10 +125,10 @@ def review_code(diff_content):
     except json.JSONDecodeError as e:
         print(f"{Colors.CRITICAL}✗ Failed to parse AI response as JSON{Colors.RESET}")
         print(f"{Colors.DIM}Error: {e}{Colors.RESET}")
-        sys.exit(1)
+        return None
     except Exception as e:
         print(f"{Colors.CRITICAL}✗ Error during AI review: {e}{Colors.RESET}")
-        sys.exit(1)
+        return None
 
 def print_issues(issues, severity, color, icon):
     """Print issues with consistent formatting."""
@@ -333,6 +335,9 @@ def run_review():
 
     print(f"{Colors.INFO}🤖 Running AI code review...{Colors.RESET}")
     results = review_code(diff_content)
+    if not results:
+        print(f"{Colors.HIGH}⚠ AI review skipped{Colors.RESET}")
+        sys.exit(0)
     display_review_results(results)
 
 def run_review_for_mr(project_id, mr_id, gitlab_token, api_url):
@@ -344,6 +349,9 @@ def run_review_for_mr(project_id, mr_id, gitlab_token, api_url):
         return
 
     results = review_code(diff_content)
+    if not results:
+        print(f"{Colors.HIGH}⚠ AI review skipped{Colors.RESET}")
+        return
 
     # Get diff refs for inline comments
     diff_refs = get_diff_refs(project_id, mr_id, gitlab_token, api_url)
