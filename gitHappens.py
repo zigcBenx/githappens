@@ -778,6 +778,16 @@ def main():
         if getattr(args, "select", False):
             reviewers = chooseReviewersManually()
         addReviewersToMergeRequest(reviewers=reviewers)
+
+        # Run AI code review and post to MR
+        try:
+            from ai_code_review import run_review_for_mr
+            project_id = get_project_id()
+            mr_id = getActiveMergeRequestId()
+            run_review_for_mr(project_id, mr_id, GITLAB_TOKEN, API_URL)
+        except Exception as e:
+            print(f"AI review skipped: {e}")
+
         if(args.auto_merge):
             setMergeRequestToAutoMerge()
         return
@@ -789,6 +799,10 @@ def main():
         return
     elif title == 'last deploy':
         get_last_production_deploy()
+        return
+    elif title == 'ai review':
+        from ai_code_review import run_review
+        run_review()
         return
 
     # Get settings for issue from template
