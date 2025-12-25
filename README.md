@@ -8,7 +8,7 @@
 
 ## Installation 🔨
 
-### Preresequisits
+### Prerequisites
 
 - install python3 (make sure to include pip in install)
 - Install [glab](https://gitlab.com/gitlab-org/cli)
@@ -30,9 +30,13 @@
 
 #### Alias
 
-To run gitHappens script anywhere in filesystem, make sure to create an alias.
-Add following line to your `.bashrc` or `.zshrc` file
-`alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'`
+To run GitHappens script anywhere in filesystem, make sure to create an alias.
+Add the following line to your `.bashrc` or `.zshrc` file:
+```bash
+alias gh='python3 ~/<path-to-githappens-project>/main.py'
+```
+
+**Note:** If you're upgrading from an older version, update your alias to point to `main.py` instead of `gitHappens.py`.
 
 Run `source ~/.zshrc` or restart terminal.
 
@@ -175,44 +179,40 @@ To configure production deployment detection, add project-specific mappings to y
 
 **Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 
-
-You can check when the last successful production deployment occurred:
-
-```
-gh last deploy
-```
-
-This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
-
-#### Configuration
-
-To configure production deployment detection, add project-specific mappings to your `templates.json`:
-
-```json
-{
-  "templates": [...],
-  "reviewers": [...],
-  "productionMappings": {
-    "your_project_id": {
-      "stage": "production:deploy",
-      "job": "deploy-to-production"
-    },
-    "another_project_id": {
-      "stage": "deploy",
-      "job": "production:deploy"
-    }
-  }
-}
-```
-
-**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 ### Flag help
 
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
 
+## Project Structure
+
+GitHappens has been refactored into a modular architecture for better maintainability and testability:
+
+```
+githappens/
+├── main.py                # Entry point and argument parsing
+├── config.py              # Configuration management
+├── gitlab_api.py          # GitLab API interactions
+├── git_utils.py           # Git operations
+├── interactive.py         # User prompts and CLI interactions
+├── templates.py           # Template processing
+├── ai_code_review.py      # AI code review functionality
+├── commands/              # Command-specific modules
+│   ├── create_issue.py    # Issue creation workflow
+│   ├── review.py          # Review workflow
+│   ├── deploy.py          # Deployment checks
+│   ├── open_mr.py         # Merge request operations
+│   ├── summary.py         # Summary commands
+│   └── report.py          # Incident report command
+├── tests/                 # Unit tests
+│   └── ... test_file.py
+└── configs/               # Configuration files
+    ├── config.ini
+    └── templates.json
+```
+
 ## Troubleshooting 🪲🔫
 
-### Recieving 401 Unauthorized error
+### Receiving 401 Unauthorized error
 
 If you get `glab: 401 Unauthorized (HTTP 401)` when using GitHappens, you must repeat `glab auth login`
 and then reopen your terminal.
@@ -221,6 +221,20 @@ and then reopen your terminal.
 
 Every contributor is welcome.
 I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/ee/api/merge_requests.html
+
+### Development Setup
+
+1. Clone the repository
+2. Recommended: create a virtual env (e.g., venv, pyenv)
+3. Install dependencies: `pip install -r requirements.txt`
+5. Set up your configuration files (see Setup section above)
+6. Optional: run tests `pytest tests/`
+
+### Code Structure Guidelines
+
+- Use the config module for all configuration access
+- Add new commands by creating modules in the `commands/` directory
+- Write unit tests for new functionality in the `tests/` directory
 
 ## Donating 💜
 
