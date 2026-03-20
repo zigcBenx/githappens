@@ -5,6 +5,7 @@ import configparser
 import config
 import gitlab_api
 import git_utils
+import templates
 import inquirer
 import datetime
 import os
@@ -32,23 +33,6 @@ def enterProjectId():
         if project_id:
             return project_id
         exit('Invalid project ID.')
-
-def select_template():
-    template_names = [t['name'] for t in config.TEMPLATES]
-    template_names.append(config.CUSTOM_TEMPLATE)
-    questions = [
-        inquirer.List('template',
-                      message="Select template:",
-                      choices=template_names,
-                      ),
-    ]
-    answer = inquirer.prompt(questions)
-    return answer['template']
-
-def getIssueSettings(template_name):
-    if template_name == config.CUSTOM_TEMPLATE:
-        return {}
-    return next((t for t in config.TEMPLATES if t['name'] == template_name), None)
 
 def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
@@ -484,7 +468,7 @@ def main():
         return
 
     # Get settings for issue from template
-    selectedSettings = getIssueSettings(select_template())
+    selectedSettings = templates.getIssueSettings(templates.select_template())
 
     # If template is False, ask for each settings
     if not len(selectedSettings):
