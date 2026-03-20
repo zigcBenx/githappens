@@ -8,18 +8,10 @@ import git_utils
 import templates
 import interactive
 import commands.create_issue
+import commands.open_mr
+import commands.review
 import datetime
 import sys
-import webbrowser
-
-def openMergeRequestInBrowser():
-    try:
-        merge_request_id = interactive.getActiveMergeRequestId()
-        remote_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip()
-        url = config.BASE_URL + '/' + remote_url.split(':')[1][:-4]
-        webbrowser.open(f"{url}/-/merge_requests/{merge_request_id}")
-    except subprocess.CalledProcessError:
-        return None
 
 def get_two_weeks_commits(return_output=False):
     two_weeks_ago = (datetime.datetime.now() - datetime.timedelta(weeks=2)).strftime('%Y-%m-%d')
@@ -213,25 +205,10 @@ def main():
     title = " ".join(args.title)
 
     if title == 'open':
-        openMergeRequestInBrowser()
+        commands.open_mr.openMergeRequestInBrowser()
         return
     elif title == 'review':
-        interactive.track_issue_time()
-        project_id = interactive.get_project_id()
-        mr_id = interactive.getActiveMergeRequestId()
-        reviewers = None
-        if getattr(args, "select", False):
-            reviewers = interactive.chooseReviewersManually()
-        gitlab_api.addReviewersToMergeRequest(project_id, mr_id, reviewers=reviewers)
-
-        try:
-            from ai_code_review import run_review_for_mr
-            run_review_for_mr(project_id, mr_id, config.GITLAB_TOKEN, config.API_URL)
-        except Exception as e:
-            print(f"AI review skipped: {e}")
-
-        if args.auto_merge:
-            gitlab_api.setMergeRequestToAutoMerge(project_id, mr_id)
+        commands.review.review_command(args)
         return
     elif title == 'summary':
         get_two_weeks_commits()
