@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 import subprocess
-import json
 import argparse
 import configparser
 import config
+import gitlab_api
 import git_utils
 import inquirer
 import datetime
-import re
 import os
 import requests
 import sys
@@ -18,7 +17,7 @@ def get_project_id():
     if (project_link == -1):
         return enterProjectId()
 
-    allProjects = get_all_projects(project_link)
+    allProjects = gitlab_api.get_all_projects(project_link)
     # Find projects id by project ssh link gathered from repo
     matching_id = None
     for project in allProjects:
@@ -27,47 +26,12 @@ def get_project_id():
             break
     return matching_id
 
-def get_all_projects(project_link):
-    url = config.API_URL + "/projects?membership=true&search=" + project_link.split('/')[-1].split('.')[0]
-
-    headers = {
-        "PRIVATE-TOKEN": config.GITLAB_TOKEN
-    }
-
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        return response.json()
-    elif response.status_code == 401:
-        print("Error: Unauthorized (401). Your GitLab token is probably expired, invalid, or missing required permissions.")
-        print("Please generate a new token and update your configs/config.ini.")
-        exit(1)
-    else:
-        print(f"Request failed with status code {response.status_code}")
-        return None
-
 def enterProjectId():
     while True:
         project_id = input('Please enter the ID of your GitLab project: ')
         if project_id:
             return project_id
         exit('Invalid project ID.')
-
-def list_milestones(current=False):
-    cmd = f'glab api /groups/{config.GROUP_ID}/milestones?state=active'
-    result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-    milestones = json.loads(result.stdout)
-    if current:
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        active_milestones = []
-        for milestone in milestones:
-            start_date = milestone['start_date']
-            due_date = milestone['due_date']
-            if start_date and due_date and start_date <= today and due_date >= today:
-                active_milestones.append(milestone)
-        active_milestones.sort(key=lambda x: x['due_date'])
-        return active_milestones[0]
-    return milestones
 
 def select_template():
     template_names = [t['name'] for t in config.TEMPLATES]
@@ -89,51 +53,10 @@ def getIssueSettings(template_name):
 def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
         issueType = settings.get('type') or 'issue'
-        return executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'), issueType)
+        return gitlab_api.executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'), issueType)
     print("No settings in template")
     exit(2)
     pass
-
-def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight, estimated_time, issue_type='issue'):
-    labels = ",".join(labels) if type(labels) == list else labels
-    assignee_id = getAuthorizedUser()['id']
-    issue_command = [
-        "glab", "api",
-        f"/projects/{str(project_id)}/issues",
-        "-f", f'title={title}',
-        "-f", f'assignee_ids={assignee_id}',
-        "-f", f'issue_type={issue_type}'
-    ]
-    if labels:
-        issue_command.append("-f")
-        issue_command.append(f'labels={labels}')
-
-    if weight:
-        issue_command.append("-f")
-        issue_command.append(f'weight={str(weight)}')
-
-    if milestoneId:
-        issue_command.append("-f")
-        issue_command.append(f'milestone_id={str(milestoneId)}')
-
-    if epic:
-        epicId = epic['id']
-        issue_command.append("-f")
-        issue_command.append(f'epic_id={str(epicId)}')
-
-    # Set the description, including iteration, estimated time, and other info
-    description = ""
-    if iteration:
-        iterationId = iteration['id']
-        description += f"/iteration *iteration:{str(iterationId)} "
-
-    if estimated_time:
-        description += f"\n/estimate {estimated_time}m "
-
-    issue_command.extend(["-f", f'description={description}'])
-
-    issue_output = subprocess.check_output(issue_command)
-    return json.loads(issue_output.decode())
 
 def select_milestone(milestones):
     milestones = [t['title'] for t in milestones]
@@ -151,16 +74,16 @@ def getSelectedMilestone(milestone, milestones):
 
 def get_milestone(manual):
     if manual:
-        milestones = list_milestones()
+        milestones = gitlab_api.list_milestones()
         return getSelectedMilestone(select_milestone(milestones), milestones)
-    milestone = list_milestones(True) # select active for today
+    milestone = gitlab_api.list_milestones(True) # select active for today
     return milestone
 
 def get_iteration(manual):
     if manual:
-        iterations = list_iterations()
+        iterations = gitlab_api.list_iterations()
         return getSelectedIteration(select_iteration(iterations), iterations)
-    return getActiveIteration()
+    return gitlab_api.getActiveIteration()
 
 def getSelectedIteration(iteration, iterations):
     return next((t for t in iterations if t['start_date'] + ' - ' + t['due_date'] == iteration), None)
@@ -175,33 +98,6 @@ def select_iteration(iterations):
     ]
     answer = inquirer.prompt(questions)
     return answer['iterations']
-
-def list_iterations():
-    cmd = f'glab api /groups/{config.GROUP_ID}/iterations?state=opened'
-    result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-    iterations = json.loads(result.stdout)
-    return iterations
-
-def getActiveIteration():
-    iterations = list_iterations()
-    today = datetime.date.today().strftime('%Y-%m-%d')
-    active_iterations = []
-    for iteration in iterations:
-        start_date = iteration['start_date']
-        due_date = iteration['due_date']
-        if start_date and due_date and start_date <= today and due_date >= today:
-            active_iterations.append(iteration)
-    active_iterations.sort(key=lambda x: x['due_date'])
-    return active_iterations[0]
-
-def getAuthorizedUser():
-    output = subprocess.check_output(["glab", "api", "/user"])
-    return json.loads(output)
-
-def list_epics():
-    cmd = f'glab api /groups/{config.GROUP_ID}/epics?per_page=1000&state=opened'
-    result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-    return json.loads(result.stdout)
 
 def select_epic(epics):
     epics = [t['title'] for t in epics]
@@ -224,51 +120,8 @@ def getSelectedEpic(epic, epics):
     return next((t for t in epics if t['title'] == epic), None)
 
 def get_epic():
-    epics = list_epics()
+    epics = gitlab_api.list_epics()
     return getSelectedEpic(select_epic(epics), epics)
-
-def create_branch(project_id, issue):
-    issueId = str(issue['iid'])
-    title = re.sub('\\s+', '-', issue['title']).lower()
-    title = issueId + '-' + title.replace(':','').replace('(',' ').replace(')', '').replace(' ','-')
-    branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", f'ref={config.MAIN_BRANCH}', "-f", f'issue_iid={issueId}'])
-    return json.loads(branch_output.decode())
-
-def create_merge_request(project_id, branch, issue, labels, milestoneId):
-    issueId = str(issue['iid'])
-    branch = branch['name']
-    title = issue['title']
-    assignee_id = getAuthorizedUser()['id']
-    labels = ",".join(labels) if type(labels) == list else labels
-    merge_request_command = [
-        "glab", "api",
-        f"/projects/{str(project_id)}/merge_requests",
-        "-f", f'title={title}',
-        "-f", f'description="Closes #{issueId}"',
-        "-f", f'source_branch={branch}',
-        "-f", f'target_branch={config.MAIN_BRANCH}',
-        "-f", f'issue_iid={issueId}',
-        "-f", f'assignee_ids={assignee_id}'
-    ]
-
-    if config.SQUASH_COMMITS:
-        merge_request_command.append("-f")
-        merge_request_command.append("squash=true")
-
-    if config.DELETE_BRANCH:
-        merge_request_command.append("-f")
-        merge_request_command.append("remove_source_branch=true")
-
-    if labels:
-        merge_request_command.append("-f")
-        merge_request_command.append(f'labels={labels}')
-
-    if milestoneId:
-        merge_request_command.append("-f")
-        merge_request_command.append(f'milestone_id={str(milestoneId)}')
-
-    mr_output = subprocess.check_output(merge_request_command)
-    return json.loads(mr_output.decode())
 
 def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue):
     # Prompt for estimated time
@@ -295,9 +148,9 @@ def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSe
     if onlyIssue:
         return createdIssue
 
-    createdBranch = create_branch(project_id, createdIssue)
+    createdBranch = gitlab_api.create_branch(project_id, createdIssue)
 
-    createdMergeRequest = create_merge_request(project_id, createdBranch, createdIssue, selectedSettings.get('labels'), milestone)
+    createdMergeRequest = gitlab_api.create_merge_request(project_id, createdBranch, createdIssue, selectedSettings.get('labels'), milestone)
     print(f"Merge request #{createdMergeRequest['iid']}: {createdMergeRequest['title']} created.")
 
     print("Run:")
@@ -321,26 +174,7 @@ def getActiveMergeRequestId():
     return find_merge_request_id_by_branch(branch_to_find)
 
 def find_merge_request_id_by_branch(branch_name):
-    return getMergeRequestForBranch(branch_name)['iid']
-
-def getMergeRequestForBranch(branchName):
-    project_id = get_project_id()
-    api_url = f"{config.API_URL}/projects/{project_id}/merge_requests"
-    headers = {"Private-Token": config.GITLAB_TOKEN}
-
-    params = {
-        "source_branch": branchName,
-    }
-
-    response = requests.get(api_url, headers=headers, params=params)
-    if response.status_code == 200:
-        merge_requests = response.json()
-        for mr in merge_requests:
-            if mr["source_branch"] == branchName:
-                return mr
-    else:
-        print(f"Failed to fetch Merge Requests: {response.status_code} - {response.text}")
-    return None
+    return gitlab_api.getMergeRequestForBranch(get_project_id(), branch_name)['iid']
 
 def chooseReviewersManually():
     """Prompt the user to select reviewers manually from the available list, showing names."""
@@ -372,34 +206,6 @@ def chooseReviewersManually():
         return [int(r) for r in answers["selected_reviewers"]]
     else:
         return []
-
-def addReviewersToMergeRequest(reviewers=None):
-    project_id = get_project_id()
-    mr_id = getActiveMergeRequestId()
-    api_url = f"{config.API_URL}/projects/{project_id}/merge_requests/{mr_id}"
-    headers = {"Private-Token": config.GITLAB_TOKEN}
-
-    data = {
-        "reviewer_ids": reviewers if reviewers is not None else config.REVIEWERS
-    }
-
-    requests.put(api_url, headers=headers, json=data)
-
-def setMergeRequestToAutoMerge():
-    project_id = get_project_id()
-    mr_id = getActiveMergeRequestId()
-    api_url = f"{config.API_URL}/projects/{project_id}/merge_requests/{mr_id}/merge"
-    headers = {"Private-Token": config.GITLAB_TOKEN}
-
-    data = {
-        "id": project_id,
-        "merge_request_iid": mr_id,
-        "should_remove_source_branch": True,
-        "merge_when_pipeline_succeeds": True,
-        "auto_merge_strategy": "merge_when_pipeline_succeeds",
-    }
-
-    requests.put(api_url, headers=headers, json=data)
 
 def get_two_weeks_commits(return_output=False):
     two_weeks_ago = (datetime.datetime.now() - datetime.timedelta(weeks=2)).strftime('%Y-%m-%d')
@@ -482,11 +288,11 @@ def process_report(text, minutes):
 
     try:
         # Create the incident issue
-        iteration = getActiveIteration()
+        iteration = gitlab_api.getActiveIteration()
         created_issue = createIssue(issue_title, incident_project_id, False, False, iteration, incident_settings)
         issue_iid = created_issue['iid']
 
-        closeOpenedIssue(issue_iid, incident_project_id)
+        gitlab_api.closeOpenedIssue(issue_iid, incident_project_id)
         print(f"Incident issue #{issue_iid} created successfully.")
         print(f"Title: {issue_title}")
 
@@ -506,20 +312,8 @@ def process_report(text, minutes):
     except Exception as e:
         print(f"Error creating incident issue: {str(e)}")
 
-def closeOpenedIssue(issue_iid, project_id):
-    issue_command = [
-        "glab", "api",
-        f"/projects/{project_id}/issues/{issue_iid}",
-        '-X', 'PUT',
-        '-f', 'state_event=close'
-    ]
-    try:
-        subprocess.run(issue_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        print(f"Error closing issue: {str(e)}")
-
 def selectLabels(search, multiple = False):
-    labels = getLabelsOfGroup(search)
+    labels = gitlab_api.getLabelsOfGroup(search)
     labels = sorted([t['name'] for t in labels])
     
     question_type = inquirer.Checkbox if multiple else inquirer.List
@@ -533,17 +327,8 @@ def selectLabels(search, multiple = False):
     answer = inquirer.prompt(questions)
     return answer['labels']
 
-def getLabelsOfGroup(search=''):
-    cmd = f'glab api /groups/{config.GROUP_ID}/labels?search={search}'
-    try:
-        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, check=True)
-        return json.loads(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"Error getting labels: {str(e)}")
-        return []
-
 def getCurrentIssueId():
-    mr = getMergeRequestForBranch(git_utils.getCurrentBranch())
+    mr = gitlab_api.getMergeRequestForBranch(get_project_id(), git_utils.getCurrentBranch())
     return mr['description'].replace('"','').replace('#','').split()[1]
 
 def track_issue_time():
@@ -580,82 +365,24 @@ def track_issue_time():
 def get_last_production_deploy():
     try:
         project_id = get_project_id()
-        api_url = f"{config.API_URL}/projects/{project_id}/pipelines"
-        headers = {"Private-Token": config.GITLAB_TOKEN}
-
-        # Set up parameters for the pipeline search
-        params = {
-            "per_page": 50,
-            "order_by": "updated_at",
-            "sort": "desc"
-        }
-
-        # Add ref filter if specified in config
         if config.MAIN_BRANCH:
-            params["ref"] = config.MAIN_BRANCH
+            pipeline_ref = config.MAIN_BRANCH
         else:
-            # Use main branch if no specific ref is configured
             try:
-                main_branch = git_utils.getMainBranch()
-                params["ref"] = main_branch
-            except:
-                # Fallback to common main branch names
-                params["ref"] = "main"
+                pipeline_ref = git_utils.getMainBranch()
+            except Exception:
+                pipeline_ref = "main"
 
-        response = requests.get(api_url, headers=headers, params=params)
-
-        if response.status_code != 200:
-            print(f"Failed to fetch pipelines: {response.status_code} - {response.text}")
+        result = gitlab_api.get_last_production_deploy_info(project_id, ref=pipeline_ref)
+        if result.get('error') == 'pipelines_fetch':
+            print(f"Failed to fetch pipelines: {result['status']} - {result['text']}")
             return
-
-        pipelines = response.json()
-        production_pipeline = None
-
-        # Look for production pipeline by name pattern
-        for pipeline in pipelines:
-            # Get pipeline details to check jobs
-            pipeline_detail_url = f"{config.API_URL}/projects/{project_id}/pipelines/{pipeline['id']}/jobs"
-            detail_response = requests.get(pipeline_detail_url, headers=headers)
-
-            if detail_response.status_code == 200:
-                jobs = detail_response.json()
-
-                # Check if this pipeline contains production deployment
-                for job in jobs:
-                    job_name = job.get('name', '')
-                    stage = job.get('stage', '')
-                    job_status = job.get('status', '').lower()
-
-                    # Only consider successful jobs
-                    if job_status != 'success':
-                        continue
-
-                    # Check project-specific mapping first
-                    project_mapping = config.PRODUCTION_MAPPINGS.get(str(project_id))
-                    if project_mapping:
-                        expected_stage = project_mapping.get('stage', '').lower()
-                        expected_job = project_mapping.get('job', '').lower()
-
-                        if (stage.lower() == expected_stage or
-                            (expected_job and job_name.lower() == expected_job)):
-                            production_pipeline = {
-                                'pipeline': pipeline,
-                                'production_job': job
-                            }
-                            break
-                    else:
-                        print('Didn\'t find deployment pipeline')
-
-                if production_pipeline:
-                    break
-
-        if not production_pipeline:
+        if result.get('error') == 'not_found':
             print(f"No production deployment found matching pattern")
             return
 
-        # Display the results
-        pipeline = production_pipeline['pipeline']
-        job = production_pipeline['production_job']
+        pipeline = result['pipeline']
+        job = result['production_job']
 
         print(f"🚀 Last Production Deployment:")
         print(f"   Pipeline: #{pipeline['id']} - {pipeline['status']}")
@@ -667,7 +394,6 @@ def get_last_production_deploy():
         print(f"   Commit: {pipeline['sha'][:8]}")
         print(f"   URL: {pipeline['web_url']}")
 
-        # Show time since deployment
         if job.get('finished_at'):
             try:
                 finished_time = datetime.datetime.fromisoformat(job['finished_at'].replace('Z', '+00:00'))
@@ -681,7 +407,7 @@ def get_last_production_deploy():
                 else:
                     minutes = time_diff.seconds // 60
                     print(f"   ⏰ {minutes} minutes ago")
-            except:
+            except Exception:
                 pass
 
     except Exception as e:
@@ -727,22 +453,21 @@ def main():
         return
     elif title == 'review':
         track_issue_time()
+        project_id = get_project_id()
+        mr_id = getActiveMergeRequestId()
         reviewers = None
         if getattr(args, "select", False):
             reviewers = chooseReviewersManually()
-        addReviewersToMergeRequest(reviewers=reviewers)
+        gitlab_api.addReviewersToMergeRequest(project_id, mr_id, reviewers=reviewers)
 
-        # Run AI code review and post to MR
         try:
             from ai_code_review import run_review_for_mr
-            project_id = get_project_id()
-            mr_id = getActiveMergeRequestId()
             run_review_for_mr(project_id, mr_id, config.GITLAB_TOKEN, config.API_URL)
         except Exception as e:
             print(f"AI review skipped: {e}")
 
-        if(args.auto_merge):
-            setMergeRequestToAutoMerge()
+        if args.auto_merge:
+            gitlab_api.setMergeRequestToAutoMerge(project_id, mr_id)
         return
     elif title == 'summary':
         get_two_weeks_commits()
