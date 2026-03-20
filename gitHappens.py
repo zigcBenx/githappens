@@ -3,6 +3,7 @@ import subprocess
 import json
 import argparse
 import configparser
+import config
 import inquirer
 import datetime
 import re
@@ -10,32 +11,6 @@ import os
 import requests
 import sys
 import webbrowser
-
-# Setup config parser and read settings
-config = configparser.ConfigParser()
-absolute_config_path = os.path.dirname(os.path.abspath(__file__))
-config_path = os.path.join(absolute_config_path, 'configs/config.ini')
-config.read(config_path)
-
-BASE_URL        = config.get('DEFAULT', 'base_url')
-API_URL         = BASE_URL + '/api/v4'
-GROUP_ID        = config.get('DEFAULT', 'group_id')
-CUSTOM_TEMPLATE = config.get('DEFAULT', 'custom_template')
-GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN').strip('\"\'')
-DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
-DEVELOPER_EMAIL = config.get('DEFAULT', 'developer_email', fallback=None)
-SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
-PRODUCTION_PIPELINE_NAME = config.get('DEFAULT', 'production_pipeline_name', fallback='deploy')
-PRODUCTION_JOB_NAME = config.get('DEFAULT', 'production_job_name', fallback=None)
-PRODUCTION_REF = config.get('DEFAULT', 'production_ref', fallback=None)
-MAIN_BRANCH     = 'master'
-
-# Read templates from json config
-with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
-    jsonConfig = json.load(f)
-TEMPLATES = jsonConfig['templates']
-REVIEWERS = jsonConfig['reviewers']
-PRODUCTION_MAPPINGS = jsonConfig.get('productionMappings', {})
 
 def get_project_id():
     project_link = getProjectLinkFromCurrentDir()
@@ -52,10 +27,10 @@ def get_project_id():
     return matching_id
 
 def get_all_projects(project_link):
-    url = API_URL + "/projects?membership=true&search=" + project_link.split('/')[-1].split('.')[0]
+    url = config.API_URL + "/projects?membership=true&search=" + project_link.split('/')[-1].split('.')[0]
 
     headers = {
-        "PRIVATE-TOKEN": GITLAB_TOKEN
+        "PRIVATE-TOKEN": config.GITLAB_TOKEN
     }
 
     response = requests.get(url, headers=headers)
@@ -90,7 +65,7 @@ def enterProjectId():
         exit('Invalid project ID.')
 
 def list_milestones(current=False):
-    cmd = f'glab api /groups/{GROUP_ID}/milestones?state=active'
+    cmd = f'glab api /groups/{config.GROUP_ID}/milestones?state=active'
     result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
     milestones = json.loads(result.stdout)
     if current:
@@ -106,8 +81,8 @@ def list_milestones(current=False):
     return milestones
 
 def select_template():
-    template_names = [t['name'] for t in TEMPLATES]
-    template_names.append(CUSTOM_TEMPLATE)
+    template_names = [t['name'] for t in config.TEMPLATES]
+    template_names.append(config.CUSTOM_TEMPLATE)
     questions = [
         inquirer.List('template',
                       message="Select template:",
@@ -118,9 +93,9 @@ def select_template():
     return answer['template']
 
 def getIssueSettings(template_name):
-    if template_name == CUSTOM_TEMPLATE:
+    if template_name == config.CUSTOM_TEMPLATE:
         return {}
-    return next((t for t in TEMPLATES if t['name'] == template_name), None)
+    return next((t for t in config.TEMPLATES if t['name'] == template_name), None)
 
 def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
@@ -213,7 +188,7 @@ def select_iteration(iterations):
     return answer['iterations']
 
 def list_iterations():
-    cmd = f'glab api /groups/{GROUP_ID}/iterations?state=opened'
+    cmd = f'glab api /groups/{config.GROUP_ID}/iterations?state=opened'
     result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
     iterations = json.loads(result.stdout)
     return iterations
@@ -235,7 +210,7 @@ def getAuthorizedUser():
     return json.loads(output)
 
 def list_epics():
-    cmd = f'glab api /groups/{GROUP_ID}/epics?per_page=1000&state=opened'
+    cmd = f'glab api /groups/{config.GROUP_ID}/epics?per_page=1000&state=opened'
     result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
     return json.loads(result.stdout)
 
@@ -267,7 +242,7 @@ def create_branch(project_id, issue):
     issueId = str(issue['iid'])
     title = re.sub('\\s+', '-', issue['title']).lower()
     title = issueId + '-' + title.replace(':','').replace('(',' ').replace(')', '').replace(' ','-')
-    branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", f'ref={MAIN_BRANCH}', "-f", f'issue_iid={issueId}'])
+    branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", f'ref={config.MAIN_BRANCH}', "-f", f'issue_iid={issueId}'])
     return json.loads(branch_output.decode())
 
 def create_merge_request(project_id, branch, issue, labels, milestoneId):
@@ -282,16 +257,16 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
         "-f", f'title={title}',
         "-f", f'description="Closes #{issueId}"',
         "-f", f'source_branch={branch}',
-        "-f", f'target_branch={MAIN_BRANCH}',
+        "-f", f'target_branch={config.MAIN_BRANCH}',
         "-f", f'issue_iid={issueId}',
         "-f", f'assignee_ids={assignee_id}'
     ]
 
-    if SQUASH_COMMITS:
+    if config.SQUASH_COMMITS:
         merge_request_command.append("-f")
         merge_request_command.append("squash=true")
 
-    if DELETE_BRANCH:
+    if config.DELETE_BRANCH:
         merge_request_command.append("-f")
         merge_request_command.append("remove_source_branch=true")
 
@@ -350,7 +325,7 @@ def openMergeRequestInBrowser():
     try:
         merge_request_id = getActiveMergeRequestId()
         remote_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip()
-        url = BASE_URL + '/' + remote_url.split(':')[1][:-4]
+        url = config.BASE_URL + '/' + remote_url.split(':')[1][:-4]
         webbrowser.open(f"{url}/-/merge_requests/{merge_request_id}")
     except subprocess.CalledProcessError:
         return None
@@ -364,8 +339,8 @@ def find_merge_request_id_by_branch(branch_name):
 
 def getMergeRequestForBranch(branchName):
     project_id = get_project_id()
-    api_url = f"{API_URL}/projects/{project_id}/merge_requests"
-    headers = {"Private-Token": GITLAB_TOKEN}
+    api_url = f"{config.API_URL}/projects/{project_id}/merge_requests"
+    headers = {"Private-Token": config.GITLAB_TOKEN}
 
     params = {
         "source_branch": branchName,
@@ -385,9 +360,9 @@ def chooseReviewersManually():
     """Prompt the user to select reviewers manually from the available list, showing names."""
     # Fetch user details for each reviewer ID
     reviewer_choices = []
-    for reviewer_id in REVIEWERS:
-        api_url = f"{API_URL}/users/{reviewer_id}"
-        headers = {"Private-Token": GITLAB_TOKEN}
+    for reviewer_id in config.REVIEWERS:
+        api_url = f"{config.API_URL}/users/{reviewer_id}"
+        headers = {"Private-Token": config.GITLAB_TOKEN}
         try:
             response = requests.get(api_url, headers=headers)
             if response.status_code == 200:
@@ -415,11 +390,11 @@ def chooseReviewersManually():
 def addReviewersToMergeRequest(reviewers=None):
     project_id = get_project_id()
     mr_id = getActiveMergeRequestId()
-    api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}"
-    headers = {"Private-Token": GITLAB_TOKEN}
+    api_url = f"{config.API_URL}/projects/{project_id}/merge_requests/{mr_id}"
+    headers = {"Private-Token": config.GITLAB_TOKEN}
 
     data = {
-        "reviewer_ids": reviewers if reviewers is not None else REVIEWERS
+        "reviewer_ids": reviewers if reviewers is not None else config.REVIEWERS
     }
 
     requests.put(api_url, headers=headers, json=data)
@@ -427,8 +402,8 @@ def addReviewersToMergeRequest(reviewers=None):
 def setMergeRequestToAutoMerge():
     project_id = get_project_id()
     mr_id = getActiveMergeRequestId()
-    api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}/merge"
-    headers = {"Private-Token": GITLAB_TOKEN}
+    api_url = f"{config.API_URL}/projects/{project_id}/merge_requests/{mr_id}/merge"
+    headers = {"Private-Token": config.GITLAB_TOKEN}
 
     data = {
         "id": project_id,
@@ -450,8 +425,8 @@ def get_two_weeks_commits(return_output=False):
     two_weeks_ago = (datetime.datetime.now() - datetime.timedelta(weeks=2)).strftime('%Y-%m-%d')
 
     cmd = f'git log --since={two_weeks_ago} --format="%ad - %ae - %s" --date=short | grep -v "Merge branch"'
-    if (DEVELOPER_EMAIL):
-        cmd = f'{cmd} | grep {DEVELOPER_EMAIL}'
+    if (config.DEVELOPER_EMAIL):
+        cmd = f'{cmd} | grep {config.DEVELOPER_EMAIL}'
     try:
         output = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.DEVNULL, universal_newlines=True).strip()
         if output:
@@ -474,7 +449,7 @@ def generate_smart_summary():
         return
 
     # Check if OpenAI API key is set
-    openai_api_key = config.get('DEFAULT', 'OPENAI_API_KEY', fallback=None)
+    openai_api_key = config.ini.get('DEFAULT', 'OPENAI_API_KEY', fallback=None)
     if not openai_api_key:
         print("OpenAI API key not set. Skipping AI summary generation.")
         return
@@ -505,7 +480,7 @@ def generate_smart_summary():
 def process_report(text, minutes):
     # Get the incident project ID from config
     try:
-        incident_project_id = config.get('DEFAULT', 'incident_project_id')
+        incident_project_id = config.ini.get('DEFAULT', 'incident_project_id')
     except (configparser.NoOptionError, configparser.NoSectionError):
         print("Error: incident_project_id not found in config.ini")
         print("Please add your incident project ID to configs/config.ini under [DEFAULT] section:")
@@ -579,7 +554,7 @@ def selectLabels(search, multiple = False):
     return answer['labels']
 
 def getLabelsOfGroup(search=''):
-    cmd = f'glab api /groups/{GROUP_ID}/labels?search={search}'
+    cmd = f'glab api /groups/{config.GROUP_ID}/labels?search={search}'
     try:
         result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, check=True)
         return json.loads(result.stdout)
@@ -625,8 +600,8 @@ def track_issue_time():
 def get_last_production_deploy():
     try:
         project_id = get_project_id()
-        api_url = f"{API_URL}/projects/{project_id}/pipelines"
-        headers = {"Private-Token": GITLAB_TOKEN}
+        api_url = f"{config.API_URL}/projects/{project_id}/pipelines"
+        headers = {"Private-Token": config.GITLAB_TOKEN}
 
         # Set up parameters for the pipeline search
         params = {
@@ -636,8 +611,8 @@ def get_last_production_deploy():
         }
 
         # Add ref filter if specified in config
-        if MAIN_BRANCH:
-            params["ref"] = MAIN_BRANCH
+        if config.MAIN_BRANCH:
+            params["ref"] = config.MAIN_BRANCH
         else:
             # Use main branch if no specific ref is configured
             try:
@@ -659,7 +634,7 @@ def get_last_production_deploy():
         # Look for production pipeline by name pattern
         for pipeline in pipelines:
             # Get pipeline details to check jobs
-            pipeline_detail_url = f"{API_URL}/projects/{project_id}/pipelines/{pipeline['id']}/jobs"
+            pipeline_detail_url = f"{config.API_URL}/projects/{project_id}/pipelines/{pipeline['id']}/jobs"
             detail_response = requests.get(pipeline_detail_url, headers=headers)
 
             if detail_response.status_code == 200:
@@ -676,7 +651,7 @@ def get_last_production_deploy():
                         continue
 
                     # Check project-specific mapping first
-                    project_mapping = PRODUCTION_MAPPINGS.get(str(project_id))
+                    project_mapping = config.PRODUCTION_MAPPINGS.get(str(project_id))
                     if project_mapping:
                         expected_stage = project_mapping.get('stage', '').lower()
                         expected_job = project_mapping.get('job', '').lower()
@@ -733,8 +708,6 @@ def get_last_production_deploy():
         print(f"Error fetching last production deploy: {str(e)}")
 
 def main():
-    global MAIN_BRANCH
-
     parser = argparse.ArgumentParser("Argument description of Git happens")
     parser.add_argument("title", nargs="+", help="Title of issue")
     parser.add_argument(f"--project_id", type=str, help="Id or URL-encoded path of project")
@@ -784,7 +757,7 @@ def main():
             from ai_code_review import run_review_for_mr
             project_id = get_project_id()
             mr_id = getActiveMergeRequestId()
-            run_review_for_mr(project_id, mr_id, GITLAB_TOKEN, API_URL)
+            run_review_for_mr(project_id, mr_id, config.GITLAB_TOKEN, config.API_URL)
         except Exception as e:
             print(f"AI review skipped: {e}")
 
@@ -831,7 +804,7 @@ def main():
     if not args.no_epic:
         epic = get_epic()
 
-    MAIN_BRANCH = getMainBranch()
+    config.set_main_branch(getMainBranch())
 
     onlyIssue = selectedSettings.get('onlyIssue') or args.only_issue
 
