@@ -63,7 +63,7 @@ def main():
         commands.deploy.get_last_production_deploy()
         return
     elif title == 'ai review':
-        from ai_code_review import run_review
+        from commands.ai_review import run_review
         run_review()
         return
 

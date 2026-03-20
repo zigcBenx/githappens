@@ -13,7 +13,7 @@ def review_command(args):
     gitlab_api.addReviewersToMergeRequest(project_id, mr_id, reviewers=reviewers)
 
     try:
-        from ai_code_review import run_review_for_mr
+        from commands.ai_review import run_review_for_mr
         run_review_for_mr(project_id, mr_id, config.GITLAB_TOKEN, config.API_URL)
     except Exception as e:
         print(f"AI review skipped: {e}")
