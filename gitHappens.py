@@ -4,6 +4,7 @@ import json
 import argparse
 import configparser
 import config
+import git_utils
 import inquirer
 import datetime
 import re
@@ -13,7 +14,7 @@ import sys
 import webbrowser
 
 def get_project_id():
-    project_link = getProjectLinkFromCurrentDir()
+    project_link = git_utils.getProjectLinkFromCurrentDir()
     if (project_link == -1):
         return enterProjectId()
 
@@ -44,18 +45,6 @@ def get_all_projects(project_link):
     else:
         print(f"Request failed with status code {response.status_code}")
         return None
-
-def getProjectLinkFromCurrentDir():
-    try:
-        cmd = 'git remote get-url origin'
-        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode == 0:
-            output = result.stdout.decode('utf-8').strip()
-            return output
-        else:
-            return -1
-    except FileNotFoundError:
-        return -1
 
 def enterProjectId():
     while True:
@@ -318,9 +307,6 @@ def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSe
 
     return createdIssue
 
-def getCurrentBranch():
-    return subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
-
 def openMergeRequestInBrowser():
     try:
         merge_request_id = getActiveMergeRequestId()
@@ -331,7 +317,7 @@ def openMergeRequestInBrowser():
         return None
 
 def getActiveMergeRequestId():
-    branch_to_find = getCurrentBranch()
+    branch_to_find = git_utils.getCurrentBranch()
     return find_merge_request_id_by_branch(branch_to_find)
 
 def find_merge_request_id_by_branch(branch_name):
@@ -414,12 +400,6 @@ def setMergeRequestToAutoMerge():
     }
 
     requests.put(api_url, headers=headers, json=data)
-
-def getMainBranch():
-    command = "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
-    output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-    return output.strip()
-
 
 def get_two_weeks_commits(return_output=False):
     two_weeks_ago = (datetime.datetime.now() - datetime.timedelta(weeks=2)).strftime('%Y-%m-%d')
@@ -563,7 +543,7 @@ def getLabelsOfGroup(search=''):
         return []
 
 def getCurrentIssueId():
-    mr = getMergeRequestForBranch(getCurrentBranch())
+    mr = getMergeRequestForBranch(git_utils.getCurrentBranch())
     return mr['description'].replace('"','').replace('#','').split()[1]
 
 def track_issue_time():
@@ -616,7 +596,7 @@ def get_last_production_deploy():
         else:
             # Use main branch if no specific ref is configured
             try:
-                main_branch = getMainBranch()
+                main_branch = git_utils.getMainBranch()
                 params["ref"] = main_branch
             except:
                 # Fallback to common main branch names
@@ -804,7 +784,7 @@ def main():
     if not args.no_epic:
         epic = get_epic()
 
-    config.set_main_branch(getMainBranch())
+    config.set_main_branch(git_utils.getMainBranch())
 
     onlyIssue = selectedSettings.get('onlyIssue') or args.only_issue
 
