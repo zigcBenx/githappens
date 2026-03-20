@@ -6,6 +6,41 @@
 
 ## Getting started 🚀
 
+## Project Structure
+
+```
+├── gitHappens.py          # Thin wrapper (backward compatible entry point)
+├── main.py                # Entry point with argument parsing and command routing
+├── config.py              # Configuration management (config.ini + templates.json)
+├── git_utils.py           # Git subprocess helpers
+├── gitlab_api.py          # GitLab API interactions (HTTP + glab CLI)
+├── templates.py           # Template selection and settings
+├── interactive.py         # User prompts, project resolution, MR helpers
+├── ai_code_review.py      # Backward-compatible shim → commands/ai_review.py
+├── commands/
+│   ├── __init__.py
+│   ├── create_issue.py    # Issue creation and branching
+│   ├── review.py          # Review workflow orchestration
+│   ├── open_mr.py         # Open MR in browser
+│   ├── deploy.py          # Deployment status checks
+│   ├── report.py          # Incident reporting
+│   ├── summary.py         # Commit summaries (plain + AI)
+│   └── ai_review.py       # AI-powered code review
+├── tests/
+│   ├── conftest.py        # Test fixtures and mocks
+│   ├── test_config.py
+│   ├── test_git_utils.py
+│   ├── test_gitlab_api.py
+│   ├── test_templates.py
+│   ├── test_interactive.py
+│   └── test_commands.py
+└── configs/
+    ├── config.ini.example
+    └── templates.json.example
+```
+
+`gitHappens.py` remains a thin wrapper that delegates to `main` for backward compatibility. Existing aliases such as `alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'` keep working without changes.
+
 ## Installation 🔨
 
 ### Preresequisits
@@ -216,6 +251,36 @@ If you run just `gh` (or whatever alias you set) or `gh --help` you will see all
 
 If you get `glab: 401 Unauthorized (HTTP 401)` when using GitHappens, you must repeat `glab auth login`
 and then reopen your terminal.
+
+## Development
+
+### Tests
+
+```bash
+pip install pytest && pytest
+```
+
+Install other dependencies as needed (see Installation), then run `pytest` from the repository root.
+
+### Module overview
+
+| Module | Responsibility |
+|--------|----------------|
+| `gitHappens.py` | Backward-compatible CLI entry; forwards to `main`. |
+| `main.py` | Parses arguments, routes subcommands to `commands/*`. |
+| `config.py` | Loads and exposes `config.ini` and related settings. |
+| `git_utils.py` | Wraps git subprocess calls used across commands. |
+| `gitlab_api.py` | GitLab REST usage and `glab` integration. |
+| `templates.py` | Template loading, selection, and template-driven defaults. |
+| `interactive.py` | Prompts, project resolution, and MR-related helpers. |
+| `ai_code_review.py` | Shim re-exporting `commands.ai_review` for legacy imports and `python ai_code_review.py`. |
+| `commands/create_issue.py` | Create issues, branches, and related GitLab flows. |
+| `commands/review.py` | Orchestrate merge request review (reviewers, approvals). |
+| `commands/open_mr.py` | Open the current branch’s MR in the browser. |
+| `commands/deploy.py` | Last deployment / pipeline status checks. |
+| `commands/report.py` | Incident reporting workflows. |
+| `commands/summary.py` | Commit summaries (plain text and optional AI). |
+| `commands/ai_review.py` | AI-assisted diff review and GitLab comments. |
 
 ## Contributing 🫂🫶
 
