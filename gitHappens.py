@@ -7,55 +7,10 @@ import gitlab_api
 import git_utils
 import templates
 import interactive
-import inquirer
+import commands.create_issue
 import datetime
 import sys
 import webbrowser
-
-def createIssue(title, project_id, milestoneId, epic, iteration, settings):
-    if settings:
-        issueType = settings.get('type') or 'issue'
-        return gitlab_api.executeIssueCreate(project_id, title, settings.get('labels'), milestoneId, epic, iteration, settings.get('weight'), settings.get('estimated_time'), issueType)
-    print("No settings in template")
-    exit(2)
-    pass
-
-def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue):
-    # Prompt for estimated time
-    estimated_time = inquirer.prompt([
-        inquirer.Text('estimated_time',
-                      message='Estimated time to complete this issue (in minutes, optional)',
-                      validate=lambda _, x: x == '' or x.isdigit())
-    ])['estimated_time']
-
-    # If multiple project IDs, split the estimated time
-    if isinstance(project_id, list):
-        estimated_time_per_project = int(estimated_time) / len(project_id) if estimated_time else None
-    else:
-        estimated_time_per_project = estimated_time
-
-    # Modify settings to include estimated time
-    if estimated_time_per_project:
-        selectedSettings = selectedSettings.copy() if selectedSettings else {}
-        selectedSettings['estimated_time'] = int(estimated_time_per_project)
-
-    createdIssue = createIssue(title, project_id, milestone, epic, iteration, selectedSettings)
-    print(f"Issue #{createdIssue['iid']}: {createdIssue['title']} created.")
-
-    if onlyIssue:
-        return createdIssue
-
-    createdBranch = gitlab_api.create_branch(project_id, createdIssue)
-
-    createdMergeRequest = gitlab_api.create_merge_request(project_id, createdBranch, createdIssue, selectedSettings.get('labels'), milestone)
-    print(f"Merge request #{createdMergeRequest['iid']}: {createdMergeRequest['title']} created.")
-
-    print("Run:")
-    print("         git fetch origin")
-    print(f"         git checkout -b '{createdMergeRequest['source_branch']}' 'origin/{createdMergeRequest['source_branch']}'")
-    print("to switch to new branch.")
-
-    return createdIssue
 
 def openMergeRequestInBrowser():
     try:
@@ -148,7 +103,7 @@ def process_report(text, minutes):
     try:
         # Create the incident issue
         iteration = gitlab_api.getActiveIteration()
-        created_issue = createIssue(issue_title, incident_project_id, False, False, iteration, incident_settings)
+        created_issue = commands.create_issue.createIssue(issue_title, incident_project_id, False, False, iteration, incident_settings)
         issue_iid = created_issue['iid']
 
         gitlab_api.closeOpenedIssue(issue_iid, incident_project_id)
@@ -324,9 +279,9 @@ def main():
 
     if type(project_id) == list:
         for id in project_id:
-            startIssueCreation(id, title, milestone, epic, iteration, selectedSettings, onlyIssue)
+            commands.create_issue.startIssueCreation(id, title, milestone, epic, iteration, selectedSettings, onlyIssue)
     else:
-        startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue)
+        commands.create_issue.startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue)
 
 if __name__ == '__main__':
     main()
