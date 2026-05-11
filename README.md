@@ -6,160 +6,190 @@
 
 ## Getting started 🚀
 
-## Installation 🔨
+### Prerequisites
 
-### Preresequisits
+- Install Python 3 and make sure `pip` is available.
+- Install [glab](https://gitlab.com/gitlab-org/cli).
+- Authorize `glab` with `glab auth login`. You will need a GitLab access
+  token; SSH is recommended for repository access.
 
-- install python3 (make sure to include pip in install)
-- Install [glab](https://gitlab.com/gitlab-org/cli)
-- Authorize via glab `glab auth login` (you will need Gitlab access token, SSH recomended)
-- `pip install inquirer` or `pip3 install inquirer`
-- `pip install requests` or `pip3 install requests`
+### Installation 🔨
 
-### Setup
+1. Clone this repository somewhere permanent on your machine.
 
-- Clone repository to your local machine to whatever destination you want (just don't delete it later)
+   ```sh
+   git clone https://github.com/zigcBenx/gitHappens.git
+   cd gitHappens
+   ```
 
-#### Setup configs
+2. Install Python dependencies.
 
-- In configs folder copy example files like so:
-  `cp configs/templates.json.example configs/templates.json`
-  `cp configs/config.ini.example configs/config.ini`
-- In `configs.ini` you have to paste id of your group in Gitlab to `group_id` (This is for fetching milestones and epics)
-- You can adjust templates now, or play with them later (however, you have to remove comments from json before running the command).
+   ```sh
+   pip install -r requirements.txt
+   ```
 
-#### Alias
+3. Copy the example configuration files.
 
-To run gitHappens script anywhere in filesystem, make sure to create an alias.
-Add following line to your `.bashrc` or `.zshrc` file
-`alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'`
+   ```sh
+   cp configs/templates.json.example configs/templates.json
+   cp configs/config.ini.example configs/config.ini
+   ```
 
-Run `source ~/.zshrc` or restart terminal.
+4. Open `configs/config.ini` and set the required values:
+
+   - `group_id`: your GitLab group ID, used for fetching milestones and epics.
+   - `GITLAB_TOKEN`: your GitLab access token.
+   - `base_url`: your GitLab instance URL. The default is `https://gitlab.com`.
+
+5. Adjust `configs/templates.json` for your issue templates, reviewers, and
+   production deployment mappings.
+
+   > [!NOTE]
+   > The example `templates.json` file contains comments at the top. Remove
+   > comments before using it as strict JSON.
+
+### Alias
+
+To run GitHappens from any directory, add an alias to your `.bashrc` or
+`.zshrc` file:
+
+```sh
+alias ghappens='python3 /path/to/gitHappens/gitHappens.py'
+```
+
+Then reload your shell configuration:
+
+```sh
+source ~/.zshrc
+```
+
+You can choose any alias name. Avoid `gh` if you already use the GitHub CLI.
 
 ## Usage ⚡
 
 ### Project selection
 
-- Project selection is made automatically if you run script in same path as your project is located.
-- You can specify project id or URL-encoded path as script argument e.g.: `--project_id=123456`
-- If no of steps above happen, program will prompt you with question about project_id
+Project selection is automatic when you run GitHappens from inside a GitLab
+project checkout.
 
-#### Issue creation for multiple projects at once
+You can also pass a project ID or URL-encoded path:
 
-This feature is useful if you have to create issue on both backend and frontend project for same thing.
-
-- You can specify list of ids in `templates.json` file.
-
+```sh
+ghappens --project_id=123456
 ```
-...
+
+If the project cannot be detected and no project ID is provided, GitHappens
+prompts you for one.
+
+### Issue creation for multiple projects at once
+
+This is useful when you need to create the same issue in related backend and
+frontend projects.
+
+Add a `projectIds` list to a template in `configs/templates.json`:
+
+```json
 {
   "name": "Feature issue for API and frontend",
-  ...
   "projectIds": [123, 456]
 }
-...
 ```
 
 ### Milestone selection
 
-Milestone is set to current by default. If you want to pick it manually, pass `-m` or `--milestone` flag to the script.
+GitHappens uses the current milestone by default. To choose a milestone
+manually, pass the `-m` or `--milestone` flag.
 
 ### Issue templates
 
 Issue templates are located in `configs/templates.json`.
 
-**Make sure that names of templates are unique**
+Template names must be unique.
 
 ### Excluding features
 
-If you don't want to include some settings you use following flags:
+Use these flags when you want to skip optional issue metadata:
 
-- `--no_epic` - no epic will be selected or prompted
-- `--no_milestone` - no milestone will be selected or prompted
+- `--no_epic`: do not select or prompt for an epic.
+- `--no_milestone`: do not select or prompt for a milestone.
 
 ### Only issue
 
-If you are in a hurry and want to create issue for later without merge request and branch this flag is for you.
+Use `--only_issue` when you want to create an issue without creating a merge
+request or branch:
 
-- `--only_issue` - no merge request nor branch will be created.
-  You can achive same functionality with adding onlyIssue key to `templates.json` file.
-
+```sh
+ghappens --only_issue
 ```
-...
+
+You can set the same behavior in a template:
+
+```json
 {
   "name": "Feature issue for later",
-  ...
   "onlyIssue": true
 }
-...
 ```
 
-### Open merge request in browser
+### Open a merge request in the browser
 
-You can open merge request for current checked out branch in browser with command:
+Open the merge request for the currently checked-out branch:
 
-```
-gh open
+```sh
+ghappens open
 ```
 
 ### Git review
 
-You can set default reviewers in templates.json file.
+Set default reviewers in `configs/templates.json`:
 
-```
-...
+```json
 {
-  "templates": [
-    ...
-  ],
-  ...
+  "templates": [],
   "reviewers": [234, 456, 678]
 }
-...
 ```
 
-To submit merge request into review run command:
+Submit a merge request for review:
 
-```
-gh review
+```sh
+ghappens review
 ```
 
-To also enable **auto-merge when the pipeline succeeds**, add `--auto_merge` or `-am` flag:
+Enable auto-merge when the pipeline succeeds:
 
+```sh
+ghappens review --auto_merge
+ghappens review -am
 ```
-gh review –-auto_merge
 
-gh review -am
-```
 ### Manually selecting reviewers
 
-To manually select reviewers for your merge request, use the `--select` flag with the review command:
+To choose reviewers interactively, use the `--select` flag:
 
+```sh
+ghappens review --select
 ```
-gh review --select
-```
 
-You will be prompted with an interactive list of reviewers to choose from.
-
+GitHappens will prompt you with an interactive list of reviewers.
 
 ### Last production deployment
 
-You can check when the last successful production deployment occurred:
+Check when the last successful production deployment occurred:
 
+```sh
+ghappens last deploy
 ```
-gh last deploy
-```
 
-This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
+The command shows the most recent successful production deployment, including timing, pipeline details, and how long ago it happened.
 
-#### Configuration
-
-To configure production deployment detection, add project-specific mappings to your `templates.json`:
+To configure production deployment detection, add project-specific mappings to
+`configs/templates.json`:
 
 ```json
 {
-  "templates": [...],
-  "reviewers": [...],
+  "templates": [],
+  "reviewers": [],
   "productionMappings": {
     "your_project_id": {
       "stage": "production:deploy",
@@ -173,56 +203,34 @@ To configure production deployment detection, add project-specific mappings to y
 }
 ```
 
-**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
+Only deployments with a `success` status are considered.
 
-
-You can check when the last successful production deployment occurred:
-
-```
-gh last deploy
-```
-
-This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
-
-#### Configuration
-
-To configure production deployment detection, add project-specific mappings to your `templates.json`:
-
-```json
-{
-  "templates": [...],
-  "reviewers": [...],
-  "productionMappings": {
-    "your_project_id": {
-      "stage": "production:deploy",
-      "job": "deploy-to-production"
-    },
-    "another_project_id": {
-      "stage": "deploy",
-      "job": "production:deploy"
-    }
-  }
-}
-```
-
-**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 ### Flag help
 
-If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
+Run GitHappens without arguments, or with `--help`, to see all available flags
+and short explanations:
+
+```sh
+ghappens --help
+```
 
 ## Troubleshooting 🪲🔫
 
-### Recieving 401 Unauthorized error
+### Receiving 401 Unauthorized
 
-If you get `glab: 401 Unauthorized (HTTP 401)` when using GitHappens, you must repeat `glab auth login`
-and then reopen your terminal.
+If you get `glab: 401 Unauthorized (HTTP 401)`, repeat the `glab auth login`
+flow and reopen your terminal.
+
+If the error persists, generate a new GitLab access token and update
+`GITLAB_TOKEN` in `configs/config.ini`.
 
 ## Contributing 🫂🫶
 
 Every contributor is welcome.
-I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/ee/api/merge_requests.html
+
+For GitLab API details, check the
+[official GitLab merge requests API documentation](https://docs.gitlab.com/ee/api/merge_requests.html).
 
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
