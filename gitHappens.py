@@ -11,28 +11,30 @@ import requests
 import sys
 import webbrowser
 
+from githappens.config import load_config, load_template_config, project_root
+from githappens.git_utils import get_project_link_from_current_dir, get_current_branch, get_main_branch
+from githappens.templates import get_issue_settings, normalize_labels, template_names
+
 # Setup config parser and read settings
 config = configparser.ConfigParser()
-absolute_config_path = os.path.dirname(os.path.abspath(__file__))
-config_path = os.path.join(absolute_config_path, 'configs/config.ini')
-config.read(config_path)
-
-BASE_URL        = config.get('DEFAULT', 'base_url')
-API_URL         = BASE_URL + '/api/v4'
-GROUP_ID        = config.get('DEFAULT', 'group_id')
-CUSTOM_TEMPLATE = config.get('DEFAULT', 'custom_template')
-GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN').strip('\"\'')
-DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
-DEVELOPER_EMAIL = config.get('DEFAULT', 'developer_email', fallback=None)
-SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
-PRODUCTION_PIPELINE_NAME = config.get('DEFAULT', 'production_pipeline_name', fallback='deploy')
-PRODUCTION_JOB_NAME = config.get('DEFAULT', 'production_job_name', fallback=None)
-PRODUCTION_REF = config.get('DEFAULT', 'production_ref', fallback=None)
+config.read(project_root() / 'configs' / 'config.ini')
+APP_CONFIG = load_config()
+absolute_config_path = str(project_root())
+BASE_URL        = APP_CONFIG.base_url
+API_URL         = APP_CONFIG.api_url
+GROUP_ID        = APP_CONFIG.group_id
+CUSTOM_TEMPLATE = APP_CONFIG.custom_template
+GITLAB_TOKEN    = APP_CONFIG.gitlab_token
+DELETE_BRANCH   = APP_CONFIG.delete_branch_after_merge
+DEVELOPER_EMAIL = APP_CONFIG.developer_email
+SQUASH_COMMITS  = APP_CONFIG.squash_commits
+PRODUCTION_PIPELINE_NAME = APP_CONFIG.production_pipeline_name
+PRODUCTION_JOB_NAME = APP_CONFIG.production_job_name
+PRODUCTION_REF = APP_CONFIG.production_ref
 MAIN_BRANCH     = 'master'
 
 # Read templates from json config
-with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
-    jsonConfig = json.load(f)
+jsonConfig = load_template_config()
 TEMPLATES = jsonConfig['templates']
 REVIEWERS = jsonConfig['reviewers']
 PRODUCTION_MAPPINGS = jsonConfig.get('productionMappings', {})
@@ -71,16 +73,7 @@ def get_all_projects(project_link):
         return None
 
 def getProjectLinkFromCurrentDir():
-    try:
-        cmd = 'git remote get-url origin'
-        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode == 0:
-            output = result.stdout.decode('utf-8').strip()
-            return output
-        else:
-            return -1
-    except FileNotFoundError:
-        return -1
+    return get_project_link_from_current_dir()
 
 def enterProjectId():
     while True:
@@ -106,21 +99,17 @@ def list_milestones(current=False):
     return milestones
 
 def select_template():
-    template_names = [t['name'] for t in TEMPLATES]
-    template_names.append(CUSTOM_TEMPLATE)
     questions = [
         inquirer.List('template',
                       message="Select template:",
-                      choices=template_names,
+                      choices=template_names(TEMPLATES, CUSTOM_TEMPLATE),
                       ),
     ]
     answer = inquirer.prompt(questions)
     return answer['template']
 
 def getIssueSettings(template_name):
-    if template_name == CUSTOM_TEMPLATE:
-        return {}
-    return next((t for t in TEMPLATES if t['name'] == template_name), None)
+    return get_issue_settings(template_name, TEMPLATES, CUSTOM_TEMPLATE)
 
 def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     if settings:
@@ -131,7 +120,7 @@ def createIssue(title, project_id, milestoneId, epic, iteration, settings):
     pass
 
 def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, weight, estimated_time, issue_type='issue'):
-    labels = ",".join(labels) if type(labels) == list else labels
+    labels = normalize_labels(labels)
     assignee_id = getAuthorizedUser()['id']
     issue_command = [
         "glab", "api",
@@ -275,7 +264,7 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
     branch = branch['name']
     title = issue['title']
     assignee_id = getAuthorizedUser()['id']
-    labels = ",".join(labels) if type(labels) == list else labels
+    labels = normalize_labels(labels)
     merge_request_command = [
         "glab", "api",
         f"/projects/{str(project_id)}/merge_requests",
@@ -344,7 +333,7 @@ def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSe
     return createdIssue
 
 def getCurrentBranch():
-    return subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
+    return get_current_branch()
 
 def openMergeRequestInBrowser():
     try:
@@ -441,9 +430,7 @@ def setMergeRequestToAutoMerge():
     requests.put(api_url, headers=headers, json=data)
 
 def getMainBranch():
-    command = "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
-    output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-    return output.strip()
+    return get_main_branch()
 
 
 def get_two_weeks_commits(return_output=False):
