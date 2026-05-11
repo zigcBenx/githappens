@@ -1,0 +1,2 @@
+"""GitHappens CLI package."""
+

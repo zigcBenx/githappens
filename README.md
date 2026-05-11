@@ -210,6 +210,30 @@ To configure production deployment detection, add project-specific mappings to y
 
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
 
+## Project structure
+
+The top-level `gitHappens.py` file is a compatibility wrapper, so existing aliases such as
+`alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'` still work.
+
+Core behavior lives in the `githappens/` package:
+
+```text
+githappens/
+|-- main.py              # Entry point and argument parsing
+|-- config.py            # Configuration loading
+|-- templates.py         # Template and reviewer config helpers
+|-- gitlab_api.py        # GitLab API and glab command integrations
+|-- git_utils.py         # Local git helpers
+|-- interactive.py       # User prompts and selections
+`-- commands/
+    |-- create_issue.py  # Issue, branch, and merge request creation
+    |-- review.py        # Review workflow and AI review handoff
+    |-- deploy.py        # Production deployment lookup
+    |-- open_mr.py       # Browser-opening helper
+    |-- report.py        # Incident report command
+    `-- summary.py       # Commit summary commands
+```
+
 ## Troubleshooting 🪲🔫
 
 ### Recieving 401 Unauthorized error
@@ -225,4 +249,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
