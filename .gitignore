@@ -1,2 +1,4 @@
 configs/templates.json
 configs/config.ini
+__pycache__/
+*.pyc

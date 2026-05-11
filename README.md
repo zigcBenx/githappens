@@ -36,6 +36,28 @@ Add following line to your `.bashrc` or `.zshrc` file
 
 Run `source ~/.zshrc` or restart terminal.
 
+## Project structure
+
+The CLI entry point is split into focused modules:
+
+```
+gitHappens.py           Compatibility wrapper for the original command path
+main.py                 Argument parsing and command dispatch
+config.py               Configuration and template file loading
+gitlab_api.py           GitLab API and glab command interactions
+git_utils.py            Git remote, branch, and commit helpers
+interactive.py          Inquirer prompts and CLI selections
+templates.py            Template lookup helpers
+commands/              Command-specific workflows
+tests/                 Unit tests for the modular pieces
+```
+
+Run the unit tests with:
+
+```
+python -m unittest discover -v
+```
+
 ## Usage ⚡
 
 ### Project selection

@@ -1,0 +1,151 @@
+import argparse
+import sys
+
+from commands.create_issue import (
+    get_epic,
+    get_iteration,
+    get_milestone,
+    process_report,
+    resolve_project_id,
+    start_issue_creation,
+)
+from commands.deploy import get_last_production_deploy
+from commands.open_mr import open_merge_request_in_browser
+from commands.review import submit_for_review
+from commands.summary import generate_smart_summary
+from config import load_settings
+from gitlab_api import GitLabAPI
+import git_utils
+import interactive
+import templates
+
+
+def build_parser():
+    parser = argparse.ArgumentParser("Argument description of Git happens")
+    parser.add_argument("title", nargs="+", help="Title of issue")
+    parser.add_argument("--project_id", type=str, help="Id or URL-encoded path of project")
+    parser.add_argument("-m", "--milestone", action="store_true", help="Add this flag, if you want to manually select milestone")
+    parser.add_argument("--no_epic", action="store_true", help="Add this flag if you don't want to pick epic")
+    parser.add_argument("--no_milestone", action="store_true", help="Add this flag if you don't want to pick milestone")
+    parser.add_argument("--no_iteration", action="store_true", help="Add this flag if you don't want to pick iteration")
+    parser.add_argument("--only_issue", action="store_true", help="Add this flag if you don't want to create merge request and branch alongside issue")
+    parser.add_argument("-am", "--auto_merge", action="store_true", help="Add this flag to review if you want to set merge request to auto merge when pipeline succeeds")
+    parser.add_argument("--select", action="store_true", help="Manually select reviewers for merge request (interactive)")
+    return parser
+
+
+def load_runtime():
+    settings = load_settings()
+    return settings, GitLabAPI(settings)
+
+
+def main(argv=None):
+    parser = build_parser()
+    argv = argv if argv is not None else sys.argv[1:]
+
+    if len(argv) <= 0:
+        parser.print_help()
+        return 1
+
+    args = parser.parse_args(argv)
+    title_parts = args.title
+    title = " ".join(title_parts)
+
+    if title == "ai review":
+        from ai_code_review import run_review
+
+        run_review()
+        return 0
+
+    try:
+        settings, api = load_runtime()
+    except Exception as error:
+        print(error)
+        return 1
+
+    if title_parts[0] == "report":
+        if len(title_parts) != 3:
+            print('Invalid report format. Use: gh report "text" minutes')
+            return 0
+        try:
+            process_report(api, settings, title_parts[1], int(title_parts[2].strip()))
+        except ValueError:
+            print("Invalid minutes. Please provide a valid number.")
+        return 0
+
+    if title == "open":
+        open_merge_request_in_browser(api, settings)
+        return 0
+    if title == "review":
+        submit_for_review(api, settings, select_reviewers=args.select, auto_merge=args.auto_merge)
+        return 0
+    if title == "summary":
+        git_utils.get_two_weeks_commits(settings.developer_email)
+        return 0
+    if title == "summaryAI":
+        generate_smart_summary(settings)
+        return 0
+    if title == "last deploy":
+        get_last_production_deploy(api, settings)
+        return 0
+
+    selected_settings = templates.get_issue_settings(
+        interactive.select_template(settings.templates, settings.custom_template),
+        settings.templates,
+        settings.custom_template,
+    )
+
+    if not selected_settings:
+        print("Custom selection of issue settings is not supported yet")
+
+    if args.project_id and selected_settings.get("projectIds"):
+        print("NOTE: Overwriting project id from argument...")
+
+    project_id = selected_settings.get("projectIds") or args.project_id or resolve_project_id(api)
+
+    milestone = False
+    if not args.no_milestone:
+        milestone = get_milestone(api, args.milestone)["id"]
+
+    iteration = False
+    if not args.no_iteration:
+        iteration = get_iteration(api, True)
+
+    epic = False
+    if not args.no_epic:
+        epic = get_epic(api)
+
+    main_branch = git_utils.get_main_branch()
+    only_issue = selected_settings.get("onlyIssue") or args.only_issue
+
+    if isinstance(project_id, list):
+        for single_project_id in project_id:
+            start_issue_creation(
+                api,
+                title,
+                single_project_id,
+                milestone,
+                epic,
+                iteration,
+                selected_settings,
+                only_issue,
+                main_branch,
+            )
+    else:
+        start_issue_creation(
+            api,
+            title,
+            project_id,
+            milestone,
+            epic,
+            iteration,
+            selected_settings,
+            only_issue,
+            main_branch,
+        )
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
