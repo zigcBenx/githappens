@@ -36,6 +36,34 @@ Add following line to your `.bashrc` or `.zshrc` file
 
 Run `source ~/.zshrc` or restart terminal.
 
+## Project structure
+
+The CLI entrypoint is intentionally small so command workflows can be tested independently.
+
+```text
+gitHappens.py          # Backwards-compatible executable wrapper
+main.py                # Argument parsing and command routing
+config.py              # config.ini loading and global settings
+templates.py           # templates.json loading and template lookup
+gitlab_api.py          # GitLab API and glab interactions
+git_utils.py           # Local git helpers
+interactive.py         # inquirer prompts and CLI selections
+commands/
+  create_issue.py      # Issue, branch, and merge request creation flow
+  review.py            # Review, time tracking, AI review, and auto-merge flow
+  deploy.py            # Last production deployment lookup
+  open_mr.py           # Browser opening for the active merge request
+  report.py            # Incident report flow
+  summary.py           # Git summary and AI summary commands
+tests/                 # Unit tests for module boundaries
+```
+
+Run the unit tests with:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 ## Usage ⚡
 
 ### Project selection
