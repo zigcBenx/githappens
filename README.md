@@ -210,6 +210,22 @@ To configure production deployment detection, add project-specific mappings to y
 
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
 
+## Project structure 🧱
+
+GitHappens is being split from the legacy `gitHappens.py` script into focused modules:
+
+```text
+githappens/
+├── config.py          # config.ini and templates.json loading
+├── git_utils.py       # local git helpers
+├── gitlab_api.py      # GitLab API wrapper
+├── templates.py       # issue template processing
+├── interactive.py     # inquirer prompt helpers
+└── commands/          # command-specific workflows
+```
+
+The top-level `gitHappens.py` entrypoint remains available for existing aliases while command logic is migrated incrementally.
+
 ## Troubleshooting 🪲🔫
 
 ### Recieving 401 Unauthorized error
