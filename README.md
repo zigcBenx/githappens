@@ -20,6 +20,28 @@
 
 - Clone repository to your local machine to whatever destination you want (just don't delete it later)
 
+#### Project structure
+
+The legacy `gitHappens.py` entrypoint is now a thin compatibility wrapper. The CLI implementation
+is split into modules under `githappens/`:
+
+```text
+githappens/
+├── main.py                # CLI argument parsing and command routing
+├── config.py              # Configuration loading
+├── runtime.py             # Runtime assembly and template loading
+├── gitlab_api.py          # GitLab API and glab command wrappers
+├── git_utils.py           # Local git helpers and URL normalization
+├── interactive.py         # inquirer-based prompts
+├── templates.py           # Template lookup helpers
+└── commands/
+    ├── create_issue.py    # Issue/report creation workflows
+    ├── open_mr.py         # Merge request browser opening
+    ├── review.py          # Review, MR opening, and time tracking
+    ├── deploy.py          # Deployment lookup
+    └── summary.py         # Commit summary commands
+```
+
 #### Setup configs
 
 - In configs folder copy example files like so:
@@ -176,39 +198,17 @@ To configure production deployment detection, add project-specific mappings to y
 **Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 
 
-You can check when the last successful production deployment occurred:
-
-```
-gh last deploy
-```
-
-This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
-
-#### Configuration
-
-To configure production deployment detection, add project-specific mappings to your `templates.json`:
-
-```json
-{
-  "templates": [...],
-  "reviewers": [...],
-  "productionMappings": {
-    "your_project_id": {
-      "stage": "production:deploy",
-      "job": "deploy-to-production"
-    },
-    "another_project_id": {
-      "stage": "deploy",
-      "job": "production:deploy"
-    }
-  }
-}
-```
-
-**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 ### Flag help
 
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
+
+## Testing
+
+Run the extracted unit tests with:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
 
 ## Troubleshooting 🪲🔫
 
@@ -225,4 +225,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
