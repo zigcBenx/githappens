@@ -36,6 +36,36 @@ Add following line to your `.bashrc` or `.zshrc` file
 
 Run `source ~/.zshrc` or restart terminal.
 
+### Project structure
+
+GitHappens is split into a small Python package so each part of the CLI can be maintained and tested independently:
+
+```
+gitHappens.py              # Backwards-compatible CLI entrypoint
+githappens/
+  main.py                  # Argument parsing and command dispatch
+  config.py                # config.ini and templates.json loading
+  gitlab_api.py            # GitLab API and glab command wrappers
+  git_utils.py             # Local git helpers
+  interactive.py           # Inquirer prompts and selections
+  templates.py             # Template lookup helpers
+  commands/
+    create_issue.py        # Issue, branch, and MR creation workflow
+    review.py              # Review, reviewer, and time tracking workflow
+    deploy.py              # Last production deployment lookup
+    open_mr.py             # Open active merge request in the browser
+    report.py              # Incident report workflow
+    summary.py             # Commit summary and AI summary workflow
+```
+
+### Running tests
+
+Unit tests live in `tests/` and can be run with the standard library test runner:
+
+```
+python -m unittest
+```
+
 ## Usage ⚡
 
 ### Project selection
