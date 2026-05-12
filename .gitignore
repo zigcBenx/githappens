@@ -1,2 +1,6 @@
 configs/templates.json
 configs/config.ini
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/

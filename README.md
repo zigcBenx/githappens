@@ -13,8 +13,7 @@
 - install python3 (make sure to include pip in install)
 - Install [glab](https://gitlab.com/gitlab-org/cli)
 - Authorize via glab `glab auth login` (you will need Gitlab access token, SSH recomended)
-- `pip install inquirer` or `pip3 install inquirer`
-- `pip install requests` or `pip3 install requests`
+- `pip install -r requirements.txt`
 
 ### Setup
 
@@ -32,7 +31,7 @@
 
 To run gitHappens script anywhere in filesystem, make sure to create an alias.
 Add following line to your `.bashrc` or `.zshrc` file
-`alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'`
+`alias gh='python3 ~/<path-to-githappens-project>/main.py'`
 
 Run `source ~/.zshrc` or restart terminal.
 
@@ -209,6 +208,30 @@ To configure production deployment detection, add project-specific mappings to y
 ### Flag help
 
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
+
+## Project Structure
+
+The codebase is organized into modular components:
+
+```
+.
+├── main.py                  # Entry point and argument parsing
+├── gitlab_api.py            # GitLab API interactions (unified transport)
+├── config.py                # Configuration management
+├── templates.py             # Template processing
+├── git_utils.py             # Git operations
+├── interactive.py           # User prompts and CLI interactions
+├── ai_code_review.py        # AI-powered code review
+├── commands/                # Command-specific logic
+│   ├── create_issue.py
+│   ├── review.py
+│   ├── deploy.py
+│   ├── open_mr.py
+│   ├── report.py
+│   ├── summary.py
+│   └── ai_review.py
+└── tests/                   # Unit tests (pytest)
+```
 
 ## Troubleshooting 🪲🔫
 
