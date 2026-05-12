@@ -32,9 +32,36 @@
 
 To run gitHappens script anywhere in filesystem, make sure to create an alias.
 Add following line to your `.bashrc` or `.zshrc` file
-`alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'`
+`alias gh='python3 ~/<path-to-githappens-project>/main.py'`
+
+Existing aliases that point to `gitHappens.py` continue to work because that file now delegates to `main.py`.
 
 Run `source ~/.zshrc` or restart terminal.
+
+## Project structure
+
+The CLI is split into small modules by responsibility:
+
+```text
+main.py                 # Entry point and argument parsing
+gitlab_api.py           # GitLab API and glab command interactions
+config.py               # Configuration and template file loading
+templates.py            # Template lookup helpers
+git_utils.py            # Git command helpers and project detection
+interactive.py          # User prompts and CLI interactions
+gitHappens.py           # Backward-compatible launcher
+commands/
+  create_issue.py       # Issue creation and incident report workflow
+  review.py             # Review workflow and time tracking
+  deploy.py             # Production deployment checks
+  open_mr.py            # Merge request browser opening
+```
+
+Run the unit tests with:
+
+```bash
+python3 -B -m unittest discover -s tests
+```
 
 ## Usage ⚡
 
@@ -225,4 +252,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
