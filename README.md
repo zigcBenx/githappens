@@ -38,6 +38,32 @@ Run `source ~/.zshrc` or restart terminal.
 
 ## Usage ⚡
 
+## Project structure
+
+The CLI entry point remains `gitHappens.py` so existing aliases keep working, but
+the implementation is split into focused modules:
+
+```
+gitHappens.py              # Compatibility wrapper
+githappens/
+  cli.py                   # Argument parsing and command routing
+  config.py                # config.ini/templates.json loading
+  gitlab_api.py            # GitLab and glab API interactions
+  git_utils.py             # Local git helpers
+  interactive.py           # Inquirer prompts and selections
+  templates.py             # Template lookup rules
+  commands/
+    issues.py              # Issue, branch, and MR creation workflow
+    open_mr.py             # Open active MR in the browser
+    review.py              # Reviewers, time tracking, and AI review
+    summary.py             # Git summary and AI summary commands
+    report.py              # Incident report workflow
+    deploy.py              # Last production deployment lookup
+```
+
+This split keeps configuration, API calls, git shelling, prompts, and command
+logic separate so each part can be tested and extended independently.
+
 ### Project selection
 
 - Project selection is made automatically if you run script in same path as your project is located.
@@ -225,4 +251,12 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
+
+## Development
+
+Run the unit tests with:
+
+```bash
+python -m unittest discover
+```
 
