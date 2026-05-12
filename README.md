@@ -46,14 +46,14 @@ the implementation is split into focused modules:
 ```
 gitHappens.py              # Compatibility wrapper
 githappens/
-  cli.py                   # Argument parsing and command routing
+  main.py                  # Argument parsing and command routing
   config.py                # config.ini/templates.json loading
   gitlab_api.py            # GitLab and glab API interactions
   git_utils.py             # Local git helpers
   interactive.py           # Inquirer prompts and selections
   templates.py             # Template lookup rules
   commands/
-    issues.py              # Issue, branch, and MR creation workflow
+    create_issue.py        # Issue, branch, and MR creation workflow
     open_mr.py             # Open active MR in the browser
     review.py              # Reviewers, time tracking, and AI review
     summary.py             # Git summary and AI summary commands

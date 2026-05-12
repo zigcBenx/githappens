@@ -1,7 +1,7 @@
 import subprocess
 
 from .. import gitlab_api, interactive
-from .issues import create_issue
+from .create_issue import create_issue
 
 
 def process_report(ctx, text, minutes):

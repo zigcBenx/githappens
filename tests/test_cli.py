@@ -1,6 +1,6 @@
 import unittest
 
-from githappens.cli import build_parser
+from githappens.main import build_parser
 
 
 class CliTest(unittest.TestCase):

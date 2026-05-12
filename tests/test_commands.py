@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from githappens.commands import deploy, issues, open_mr, report, review, summary
+from githappens.commands import create_issue, deploy, open_mr, report, review, summary
 
 
 class FakePrompt:
@@ -16,10 +16,10 @@ class FakePrompt:
 
 
 class IssuesCommandTest(unittest.TestCase):
-    @patch("githappens.commands.issues.gitlab_api.create_merge_request")
-    @patch("githappens.commands.issues.gitlab_api.create_branch")
-    @patch("githappens.commands.issues.gitlab_api.execute_issue_create")
-    @patch("githappens.commands.issues.interactive._inquirer", return_value=FakePrompt)
+    @patch("githappens.commands.create_issue.gitlab_api.create_merge_request")
+    @patch("githappens.commands.create_issue.gitlab_api.create_branch")
+    @patch("githappens.commands.create_issue.gitlab_api.execute_issue_create")
+    @patch("githappens.commands.create_issue.interactive._inquirer", return_value=FakePrompt)
     def test_start_issue_creation_creates_issue_branch_and_mr(
         self, _, execute_issue_create, create_branch, create_merge_request
     ):
@@ -33,7 +33,7 @@ class IssuesCommandTest(unittest.TestCase):
         }
 
         with patch("builtins.print"):
-            created_issue = issues.start_issue_creation(
+            created_issue = create_issue.start_issue_creation(
                 ctx,
                 project_id=123,
                 title="Fix bug",
@@ -50,16 +50,16 @@ class IssuesCommandTest(unittest.TestCase):
         create_branch.assert_called_once_with(ctx, 123, created_issue)
         create_merge_request.assert_called_once()
 
-    @patch("githappens.commands.issues.gitlab_api.create_branch")
-    @patch("githappens.commands.issues.gitlab_api.execute_issue_create")
-    @patch("githappens.commands.issues.interactive._inquirer", return_value=FakePrompt)
+    @patch("githappens.commands.create_issue.gitlab_api.create_branch")
+    @patch("githappens.commands.create_issue.gitlab_api.execute_issue_create")
+    @patch("githappens.commands.create_issue.interactive._inquirer", return_value=FakePrompt)
     def test_start_issue_creation_can_stop_after_issue(
         self, _, execute_issue_create, create_branch
     ):
         execute_issue_create.return_value = {"iid": 11, "title": "Docs"}
 
         with patch("builtins.print"):
-            result = issues.start_issue_creation(
+            result = create_issue.start_issue_creation(
                 SimpleNamespace(),
                 123,
                 "Docs",

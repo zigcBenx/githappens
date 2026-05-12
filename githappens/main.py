@@ -3,7 +3,7 @@ import sys
 
 from .config import load_context
 from . import gitlab_api, interactive, templates
-from .commands import deploy, issues, open_mr, report, review, summary
+from .commands import create_issue, deploy, open_mr, report, review, summary
 
 
 def build_parser():
@@ -129,12 +129,12 @@ def main(argv=None):
     if not args.no_epic:
         epic = interactive.get_epic(ctx)
 
-    issues.resolve_main_branch(ctx)
+    create_issue.resolve_main_branch(ctx)
     only_issue = selected_settings.get("onlyIssue") or args.only_issue
 
     if isinstance(project_id, list):
         for selected_project_id in project_id:
-            issues.start_issue_creation(
+            create_issue.start_issue_creation(
                 ctx,
                 selected_project_id,
                 title,
@@ -145,7 +145,7 @@ def main(argv=None):
                 only_issue,
             )
     else:
-        issues.start_issue_creation(
+        create_issue.start_issue_creation(
             ctx,
             project_id,
             title,
