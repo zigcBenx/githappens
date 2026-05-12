@@ -38,6 +38,27 @@ Run `source ~/.zshrc` or restart terminal.
 
 ## Usage ⚡
 
+## Project structure 🧱
+
+GitHappens is split into small modules so CLI workflows can be tested and extended without editing a single large script.
+
+```
+gitHappens.py          # Backwards-compatible executable wrapper
+main.py                # Entry point and argument parsing
+config.py              # Configuration and template file loading
+templates.py           # Template selection and lookup
+gitlab_api.py          # GitLab API and glab command interactions
+git_utils.py           # Local git helpers
+interactive.py         # User prompts and interactive selections
+commands/
+  create_issue.py      # Issue, branch, and merge request creation workflow
+  review.py            # Review workflow
+  deploy.py            # Deployment lookup workflow
+  open_mr.py           # Open merge request workflow
+  report.py            # Incident report workflow
+  summary.py           # Commit summary workflows
+```
+
 ### Project selection
 
 - Project selection is made automatically if you run script in same path as your project is located.
@@ -225,4 +246,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
