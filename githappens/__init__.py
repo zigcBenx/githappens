@@ -1,0 +1,2 @@
+"""GitHappens package."""
+
