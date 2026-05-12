@@ -217,6 +217,32 @@ If you run just `gh` (or whatever alias you set) or `gh --help` you will see all
 If you get `glab: 401 Unauthorized (HTTP 401)` when using GitHappens, you must repeat `glab auth login`
 and then reopen your terminal.
 
+## Project structure 🗂️
+
+The CLI is organised into focused modules so each piece is easy to find, test
+and extend:
+
+```
+├── main.py                 # Entry point and argument parsing
+├── gitHappens.py           # Backwards-compatible shim that delegates to main.py
+├── config.py               # Configuration loading (config.ini + templates.json)
+├── gitlab_api.py           # GitLab API interactions (HTTP + glab wrappers)
+├── templates.py            # Issue-template selection
+├── git_utils.py            # Local git operations
+├── interactive.py          # User prompts (inquirer)
+├── project.py              # Resolve current project id
+└── commands/
+    ├── create_issue.py     # Issue + branch + MR creation
+    ├── merge_request.py    # MR lookups, reviewers, auto-merge
+    ├── open_mr.py          # Open the active MR in the browser
+    ├── review.py           # Review workflow + AI review hook
+    ├── deploy.py           # Last production deployment lookup
+    ├── summary.py          # Two-week commit summary (raw + AI)
+    └── incident.py         # Incident report workflow
+```
+
+Existing aliases pointing at `gitHappens.py` keep working unchanged.
+
 ## Contributing 🫂🫶
 
 Every contributor is welcome.
