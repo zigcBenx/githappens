@@ -336,12 +336,17 @@ def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSe
     createdMergeRequest = create_merge_request(project_id, createdBranch, createdIssue, selectedSettings.get('labels'), milestone)
     print(f"Merge request #{createdMergeRequest['iid']}: {createdMergeRequest['title']} created.")
 
-    print("Run:")
-    print("         git fetch origin")
-    print(f"         git checkout -b '{createdMergeRequest['source_branch']}' 'origin/{createdMergeRequest['source_branch']}'")
-    print("to switch to new branch.")
+    checkoutBranch(createdMergeRequest['source_branch'])
+    print(f"Switched to branch {createdMergeRequest['source_branch']}.")
 
     return createdIssue
+
+def checkoutBranch(branchName):
+    subprocess.check_call(['git', 'fetch', 'origin'])
+    try:
+        subprocess.check_call(['git', 'checkout', branchName])
+    except subprocess.CalledProcessError:
+        subprocess.check_call(['git', 'checkout', '-b', branchName, f'origin/{branchName}'])
 
 def getCurrentBranch():
     return subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
