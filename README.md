@@ -36,6 +36,29 @@ Add following line to your `.bashrc` or `.zshrc` file
 
 Run `source ~/.zshrc` or restart terminal.
 
+## Project structure
+
+The legacy `gitHappens.py` file is kept as the executable entrypoint, but the implementation now lives in a small package:
+
+```
+githappens/
+  main.py                  # CLI argument parsing and command routing
+  config.py                # config.ini and templates.json loading
+  gitlab_api.py            # GitLab API and glab calls
+  git_utils.py             # local git helpers
+  interactive.py           # inquirer prompts and selectors
+  templates.py             # issue template selection
+  commands/
+    create_issue.py        # issue, branch, and merge request creation
+    open_mr.py             # active merge request lookup and browser opening
+    review.py              # review, reviewer, and time tracking commands
+    report.py              # incident report command
+    deploy.py              # production deployment lookup
+    summary.py             # git summary commands
+```
+
+This split keeps the old alias working while making command behavior easier to test and extend.
+
 ## Usage ⚡
 
 ### Project selection
