@@ -4,15 +4,13 @@
   <img src="https://github.com/user-attachments/assets/f18c0f04-edef-467c-b833-019643642beb" alt="GitHappens demo" />
 </div>
 
-## Getting started 🚀
-
 ## Installation 🔨
 
-### Preresequisits
+### Prerequisites
 
-- install python3 (make sure to include pip in install)
+- Install python3 (make sure to include pip in install)
 - Install [glab](https://gitlab.com/gitlab-org/cli)
-- Authorize via glab `glab auth login` (you will need Gitlab access token, SSH recomended)
+- Authorize via glab `glab auth login` (you will need a GitLab access token, SSH recommended)
 - `pip install inquirer` or `pip3 install inquirer`
 - `pip install requests` or `pip3 install requests`
 
@@ -25,7 +23,7 @@
 - In configs folder copy example files like so:
   `cp configs/templates.json.example configs/templates.json`
   `cp configs/config.ini.example configs/config.ini`
-- In `configs.ini` you have to paste id of your group in Gitlab to `group_id` (This is for fetching milestones and epics)
+- In `configs/config.ini` you have to paste the id of your group in GitLab into `group_id` (this is for fetching milestones and epics)
 - You can adjust templates now, or play with them later (however, you have to remove comments from json before running the command).
 
 #### Alias
@@ -42,7 +40,7 @@ Run `source ~/.zshrc` or restart terminal.
 
 - Project selection is made automatically if you run script in same path as your project is located.
 - You can specify project id or URL-encoded path as script argument e.g.: `--project_id=123456`
-- If no of steps above happen, program will prompt you with question about project_id
+- If none of the steps above happen, the program will prompt you with a question about `project_id`
 
 #### Issue creation for multiple projects at once
 
@@ -82,7 +80,7 @@ If you don't want to include some settings you use following flags:
 If you are in a hurry and want to create issue for later without merge request and branch this flag is for you.
 
 - `--only_issue` - no merge request nor branch will be created.
-  You can achive same functionality with adding onlyIssue key to `templates.json` file.
+  You can achieve the same functionality by adding the `onlyIssue` key to the `templates.json` file.
 
 ```
 ...
@@ -127,7 +125,7 @@ gh review
 To also enable **auto-merge when the pipeline succeeds**, add `--auto_merge` or `-am` flag:
 
 ```
-gh review –-auto_merge
+gh review --auto_merge
 
 gh review -am
 ```
@@ -175,44 +173,13 @@ To configure production deployment detection, add project-specific mappings to y
 
 **Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 
-
-You can check when the last successful production deployment occurred:
-
-```
-gh last deploy
-```
-
-This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
-
-#### Configuration
-
-To configure production deployment detection, add project-specific mappings to your `templates.json`:
-
-```json
-{
-  "templates": [...],
-  "reviewers": [...],
-  "productionMappings": {
-    "your_project_id": {
-      "stage": "production:deploy",
-      "job": "deploy-to-production"
-    },
-    "another_project_id": {
-      "stage": "deploy",
-      "job": "production:deploy"
-    }
-  }
-}
-```
-
-**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 ### Flag help
 
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
 
 ## Troubleshooting 🪲🔫
 
-### Recieving 401 Unauthorized error
+### Receiving 401 Unauthorized error
 
 If you get `glab: 401 Unauthorized (HTTP 401)` when using GitHappens, you must repeat `glab auth login`
 and then reopen your terminal.
@@ -220,7 +187,7 @@ and then reopen your terminal.
 ## Contributing 🫂🫶
 
 Every contributor is welcome.
-I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/ee/api/merge_requests.html
+I suggest checking GitLab's official API documentation: https://docs.gitlab.com/ee/api/merge_requests.html
 
 ## Donating 💜
 
