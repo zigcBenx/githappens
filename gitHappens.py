@@ -10,6 +10,7 @@ import os
 import requests
 import sys
 import webbrowser
+from urllib.parse import quote, urlencode
 
 # Setup config parser and read settings
 config = configparser.ConfigParser()
@@ -89,8 +90,11 @@ def enterProjectId():
             return project_id
         exit('Invalid project ID.')
 
-def list_milestones(current=False):
-    cmd = f'glab api /groups/{GROUP_ID}/milestones?state=active'
+def list_milestones(current=False, search=''):
+    query_params = {'state': 'active'}
+    if search:
+        query_params['search'] = search
+    cmd = f'glab api /groups/{GROUP_ID}/milestones?{urlencode(query_params, quote_via=quote)}'
     result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
     milestones = json.loads(result.stdout)
     if current:
@@ -187,7 +191,12 @@ def getSelectedMilestone(milestone, milestones):
 
 def get_milestone(manual):
     if manual:
-        milestones = list_milestones()
+        search_query = inquirer.prompt([
+            inquirer.Text('milestone_search', message='Search milestone:'),
+        ])['milestone_search']
+        milestones = list_milestones(search=search_query)
+        if not milestones:
+            milestones = list_milestones()
         return getSelectedMilestone(select_milestone(milestones), milestones)
     milestone = list_milestones(True) # select active for today
     return milestone
