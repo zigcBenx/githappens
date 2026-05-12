@@ -37,6 +37,36 @@ TEMPLATES = jsonConfig['templates']
 REVIEWERS = jsonConfig['reviewers']
 PRODUCTION_MAPPINGS = jsonConfig.get('productionMappings', {})
 
+def exit_with_gitlab_auth_error():
+    print("Error: Unauthorized (401). Your GitLab token is probably expired, invalid, or missing required permissions.")
+    print("Please generate a new token and update your configs/config.ini.")
+    print("If this command uses glab, also run: glab auth login")
+    exit(1)
+
+def handle_gitlab_response(response, action):
+    if response.status_code == 401:
+        exit_with_gitlab_auth_error()
+    if response.status_code >= 400:
+        print(f"Failed to {action}: {response.status_code} - {response.text}")
+        exit(1)
+    return response
+
+def run_glab_json(command, action):
+    try:
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        return json.loads(output.decode())
+    except subprocess.CalledProcessError as e:
+        output = e.output.decode(errors='replace') if e.output else ''
+        if '401' in output or 'Unauthorized' in output:
+            exit_with_gitlab_auth_error()
+        print(f"Failed to {action}.")
+        if output:
+            print(output.strip())
+        exit(e.returncode)
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse GitLab response while trying to {action}: {e}")
+        exit(1)
+
 def get_project_id():
     project_link = getProjectLinkFromCurrentDir()
     if (project_link == -1):
@@ -60,15 +90,7 @@ def get_all_projects(project_link):
 
     response = requests.get(url, headers=headers)
 
-    if response.status_code == 200:
-        return response.json()
-    elif response.status_code == 401:
-        print("Error: Unauthorized (401). Your GitLab token is probably expired, invalid, or missing required permissions.")
-        print("Please generate a new token and update your configs/config.ini.")
-        exit(1)
-    else:
-        print(f"Request failed with status code {response.status_code}")
-        return None
+    return handle_gitlab_response(response, "fetch projects").json()
 
 def getProjectLinkFromCurrentDir():
     try:
@@ -90,9 +112,10 @@ def enterProjectId():
         exit('Invalid project ID.')
 
 def list_milestones(current=False):
-    cmd = f'glab api /groups/{GROUP_ID}/milestones?state=active'
-    result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-    milestones = json.loads(result.stdout)
+    milestones = run_glab_json(
+        ["glab", "api", f"/groups/{GROUP_ID}/milestones?state=active"],
+        "fetch milestones"
+    )
     if current:
         today = datetime.date.today().strftime('%Y-%m-%d')
         active_milestones = []
@@ -168,8 +191,7 @@ def executeIssueCreate(project_id, title, labels, milestoneId, epic, iteration, 
 
     issue_command.extend(["-f", f'description={description}'])
 
-    issue_output = subprocess.check_output(issue_command)
-    return json.loads(issue_output.decode())
+    return run_glab_json(issue_command, "create issue")
 
 def select_milestone(milestones):
     milestones = [t['title'] for t in milestones]
@@ -213,10 +235,10 @@ def select_iteration(iterations):
     return answer['iterations']
 
 def list_iterations():
-    cmd = f'glab api /groups/{GROUP_ID}/iterations?state=opened'
-    result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-    iterations = json.loads(result.stdout)
-    return iterations
+    return run_glab_json(
+        ["glab", "api", f"/groups/{GROUP_ID}/iterations?state=opened"],
+        "fetch iterations"
+    )
 
 def getActiveIteration():
     iterations = list_iterations()
@@ -231,13 +253,13 @@ def getActiveIteration():
     return active_iterations[0]
 
 def getAuthorizedUser():
-    output = subprocess.check_output(["glab", "api", "/user"])
-    return json.loads(output)
+    return run_glab_json(["glab", "api", "/user"], "fetch the authorized user")
 
 def list_epics():
-    cmd = f'glab api /groups/{GROUP_ID}/epics?per_page=1000&state=opened'
-    result = subprocess.run(cmd.split(), stdout=subprocess.PIPE)
-    return json.loads(result.stdout)
+    return run_glab_json(
+        ["glab", "api", f"/groups/{GROUP_ID}/epics?per_page=1000&state=opened"],
+        "fetch epics"
+    )
 
 def select_epic(epics):
     epics = [t['title'] for t in epics]
@@ -267,8 +289,10 @@ def create_branch(project_id, issue):
     issueId = str(issue['iid'])
     title = re.sub('\\s+', '-', issue['title']).lower()
     title = issueId + '-' + title.replace(':','').replace('(',' ').replace(')', '').replace(' ','-')
-    branch_output = subprocess.check_output(["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", f'ref={MAIN_BRANCH}', "-f", f'issue_iid={issueId}'])
-    return json.loads(branch_output.decode())
+    return run_glab_json(
+        ["glab", "api", f"/projects/{str(project_id)}/repository/branches", "-f", f'branch={title}', "-f", f'ref={MAIN_BRANCH}', "-f", f'issue_iid={issueId}'],
+        "create branch"
+    )
 
 def create_merge_request(project_id, branch, issue, labels, milestoneId):
     issueId = str(issue['iid'])
@@ -303,8 +327,7 @@ def create_merge_request(project_id, branch, issue, labels, milestoneId):
         merge_request_command.append("-f")
         merge_request_command.append(f'milestone_id={str(milestoneId)}')
 
-    mr_output = subprocess.check_output(merge_request_command)
-    return json.loads(mr_output.decode())
+    return run_glab_json(merge_request_command, "create merge request")
 
 def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSettings, onlyIssue):
     # Prompt for estimated time
@@ -378,7 +401,7 @@ def getMergeRequestForBranch(branchName):
             if mr["source_branch"] == branchName:
                 return mr
     else:
-        print(f"Failed to fetch Merge Requests: {response.status_code} - {response.text}")
+        handle_gitlab_response(response, "fetch merge requests")
     return None
 
 def chooseReviewersManually():
@@ -579,13 +602,10 @@ def selectLabels(search, multiple = False):
     return answer['labels']
 
 def getLabelsOfGroup(search=''):
-    cmd = f'glab api /groups/{GROUP_ID}/labels?search={search}'
-    try:
-        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, check=True)
-        return json.loads(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"Error getting labels: {str(e)}")
-        return []
+    return run_glab_json(
+        ["glab", "api", f"/groups/{GROUP_ID}/labels?search={search}"],
+        "fetch labels"
+    )
 
 def getCurrentIssueId():
     mr = getMergeRequestForBranch(getCurrentBranch())
