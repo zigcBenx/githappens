@@ -25,6 +25,7 @@ GITLAB_TOKEN    = config.get('DEFAULT', 'GITLAB_TOKEN').strip('\"\'')
 DELETE_BRANCH   = config.get('DEFAULT', 'delete_branch_after_merge').lower() == 'true'
 DEVELOPER_EMAIL = config.get('DEFAULT', 'developer_email', fallback=None)
 SQUASH_COMMITS  = config.get('DEFAULT', 'squash_commits').lower() == 'true'
+AUTO_FETCH_AFTER_MERGE_REQUEST = config.get('DEFAULT', 'auto_fetch_after_merge_request', fallback='false').lower() == 'true'
 PRODUCTION_PIPELINE_NAME = config.get('DEFAULT', 'production_pipeline_name', fallback='deploy')
 PRODUCTION_JOB_NAME = config.get('DEFAULT', 'production_job_name', fallback=None)
 PRODUCTION_REF = config.get('DEFAULT', 'production_ref', fallback=None)
@@ -336,8 +337,12 @@ def startIssueCreation(project_id, title, milestone, epic, iteration, selectedSe
     createdMergeRequest = create_merge_request(project_id, createdBranch, createdIssue, selectedSettings.get('labels'), milestone)
     print(f"Merge request #{createdMergeRequest['iid']}: {createdMergeRequest['title']} created.")
 
+    if AUTO_FETCH_AFTER_MERGE_REQUEST:
+        subprocess.check_call(["git", "fetch", "origin"])
+
     print("Run:")
-    print("         git fetch origin")
+    if not AUTO_FETCH_AFTER_MERGE_REQUEST:
+        print("         git fetch origin")
     print(f"         git checkout -b '{createdMergeRequest['source_branch']}' 'origin/{createdMergeRequest['source_branch']}'")
     print("to switch to new branch.")
 

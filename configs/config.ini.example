@@ -5,6 +5,7 @@ custom_template=Custom
 GITLAB_TOKEN=
 squash_commits=true
 delete_branch_after_merge=true
+auto_fetch_after_merge_request=false
 developer_email="<someone@mail.com>"
 OPENAI_API_KEY=<your_openai_api_key>
 incident_project_id=<your_incident_project_id>
