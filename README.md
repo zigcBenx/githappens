@@ -38,6 +38,35 @@ Run `source ~/.zshrc` or restart terminal.
 
 ## Usage ⚡
 
+## Project structure
+
+GitHappens is split into focused modules so the CLI entry point stays small and command workflows can be tested independently:
+
+```text
+gitHappens.py              # CLI entry point and argument dispatch
+config.py                  # Config and template file loading
+gitlab_api.py              # GitLab API and glab command integrations
+git_utils.py               # Local git helpers
+templates.py               # Issue template selection and lookup
+interactive.py             # Interactive prompt helpers
+commands/
+  create_issue.py          # Issue, branch, and merge request creation workflow
+  open_mr.py               # Open the active merge request in the browser
+  review.py                # Reviewers, time tracking, AI review, and auto-merge
+  summary.py               # Commit summary commands
+  deploy.py                # Last production deployment lookup
+tests/                     # Unit tests for the extracted modules
+```
+
+### Testing
+
+Install runtime dependencies and pytest, then run the test suite:
+
+```bash
+pip install -r requirements.txt pytest
+pytest
+```
+
 ### Project selection
 
 - Project selection is made automatically if you run script in same path as your project is located.
@@ -225,4 +254,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
