@@ -45,6 +45,35 @@ SYSTEM_PROMPT = """You are a senior code reviewer performing a thorough code rev
 - MEDIUM: Code smells, potential bugs, missing error handling
 - LOW: Minor improvements, suggestions, style inconsistencies"""
 
+DOCUMENTATION_PROMPT = """Documentation review: you are a technical writer reviewing a git diff for documentation impact.
+
+Output ONLY valid JSON - no markdown, no code blocks, no explanations.
+
+Identify whether the diff changes user-facing behavior, setup steps, configuration,
+commands, flags, public APIs, or operational workflows that should be documented.
+Do not suggest documentation for purely internal refactors, test-only changes, or
+minor implementation details that users do not need to know.
+
+Output format:
+{
+  "needed": true,
+  "summary": "one sentence describing why docs should change",
+  "suggestions": [
+    {
+      "file": "README.md",
+      "reason": "what changed in the diff",
+      "suggestion": "specific documentation update to make"
+    }
+  ]
+}
+
+If no documentation update is needed, return:
+{
+  "needed": false,
+  "summary": "No documentation updates needed.",
+  "suggestions": []
+}"""
+
 def get_branch_diff():
     """Get the diff of changed files in current branch vs main branch."""
     try:
@@ -130,6 +159,32 @@ def review_code(diff_content):
         print(f"{Colors.CRITICAL}✗ Error during AI review: {e}{Colors.RESET}")
         return None
 
+def suggest_documentation_updates(diff_content):
+    """Send code diff to OpenAI for documentation update suggestions."""
+    openai = get_openai_client()
+    if not openai:
+        return None
+
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": DOCUMENTATION_PROMPT},
+                {"role": "user", "content": f"Documentation review for this git diff:\n\n{diff_content}"}
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"}
+        )
+
+        return json.loads(response.choices[0].message.content)
+    except json.JSONDecodeError as e:
+        print(f"{Colors.CRITICAL}✗ Failed to parse documentation response as JSON{Colors.RESET}")
+        print(f"{Colors.DIM}Error: {e}{Colors.RESET}")
+        return None
+    except Exception as e:
+        print(f"{Colors.CRITICAL}✗ Error during documentation review: {e}{Colors.RESET}")
+        return None
+
 def print_issues(issues, severity, color, icon):
     """Print issues with consistent formatting."""
     if not issues:
@@ -212,6 +267,41 @@ def format_gitlab_comment(results):
         comment += f"---\n**Summary:** {summary}\n"
 
     return comment
+
+def format_documentation_comment(results):
+    """Format documentation suggestions as a GitLab markdown comment."""
+    if not results or not results.get('needed'):
+        return None
+
+    comment = "## Documentation Suggestions\n\n"
+
+    summary = results.get('summary', '')
+    if summary:
+        comment += f"{summary}\n\n"
+
+    suggestions = results.get('suggestions', [])
+    if not suggestions:
+        comment += "- **`Documentation`**: Review the diff and update documentation as needed.\n"
+        return comment
+
+    for suggestion in suggestions:
+        file_path = suggestion.get('file', 'Documentation')
+        reason = suggestion.get('reason', 'Documentation may need an update.')
+        update = suggestion.get('suggestion', 'Review the diff and update documentation as needed.')
+        comment += f"- **`{file_path}`**: {update}\n"
+        comment += f"  - Reason: {reason}\n"
+
+    return comment
+
+def display_documentation_results(results):
+    """Display documentation suggestions in the terminal."""
+    comment = format_documentation_comment(results)
+    if not comment:
+        print(f"{Colors.INFO}ℹ No documentation updates suggested{Colors.RESET}")
+        return
+
+    print(f"\n{Colors.BOLD}DOCUMENTATION SUGGESTIONS{Colors.RESET}")
+    print(comment)
 
 def get_merge_request_changes(project_id, mr_id, gitlab_token, api_url):
     """Get the changes (diffs) from the merge request to find commit SHAs."""
@@ -340,6 +430,11 @@ def run_review():
         sys.exit(0)
     display_review_results(results)
 
+    print(f"{Colors.INFO}📝 Checking documentation impact...{Colors.RESET}")
+    documentation_results = suggest_documentation_updates(diff_content)
+    if documentation_results:
+        display_documentation_results(documentation_results)
+
 def run_review_for_mr(project_id, mr_id, gitlab_token, api_url):
     """Run AI code review and post inline comments to GitLab merge request."""
     print(f"{Colors.INFO}🤖 Running AI code review...{Colors.RESET}")
@@ -353,12 +448,17 @@ def run_review_for_mr(project_id, mr_id, gitlab_token, api_url):
         print(f"{Colors.HIGH}⚠ AI review skipped{Colors.RESET}")
         return
 
+    documentation_results = suggest_documentation_updates(diff_content)
+    documentation_comment = format_documentation_comment(documentation_results)
+
     # Get diff refs for inline comments
     diff_refs = get_diff_refs(project_id, mr_id, gitlab_token, api_url)
     if not diff_refs or not all(diff_refs.values()):
         print(f"{Colors.HIGH}⚠ Could not get diff refs, posting summary only{Colors.RESET}")
         comment = format_gitlab_comment(results)
         post_to_merge_request(comment, project_id, mr_id, gitlab_token, api_url)
+        if documentation_comment:
+            post_to_merge_request(documentation_comment, project_id, mr_id, gitlab_token, api_url)
         return
 
     # Post inline comments for each issue
@@ -385,6 +485,9 @@ def run_review_for_mr(project_id, mr_id, gitlab_token, api_url):
         post_to_merge_request(summary_comment, project_id, mr_id, gitlab_token, api_url)
     else:
         print(f"{Colors.INFO}✓ All {total_posted} issues posted as inline comments{Colors.RESET}")
+
+    if documentation_comment:
+        post_to_merge_request(documentation_comment, project_id, mr_id, gitlab_token, api_url)
 
 if __name__ == '__main__':
     run_review()

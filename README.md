@@ -124,6 +124,11 @@ To submit merge request into review run command:
 gh review
 ```
 
+If `OPENAI_API_KEY` is configured, the review command also checks the diff for
+documentation impact and posts suggested documentation updates to the merge
+request when user-facing behavior, setup, configuration, or command usage
+changes.
+
 To also enable **auto-merge when the pipeline succeeds**, add `--auto_merge` or `-am` flag:
 
 ```
@@ -225,4 +230,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
