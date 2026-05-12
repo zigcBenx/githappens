@@ -102,6 +102,8 @@ def list_milestones(current=False):
             if start_date and due_date and start_date <= today and due_date >= today:
                 active_milestones.append(milestone)
         active_milestones.sort(key=lambda x: x['due_date'])
+        if not active_milestones:
+            return None
         return active_milestones[0]
     return milestones
 
@@ -191,6 +193,10 @@ def get_milestone(manual):
         return getSelectedMilestone(select_milestone(milestones), milestones)
     milestone = list_milestones(True) # select active for today
     return milestone
+
+def get_milestone_id(manual):
+    milestone = get_milestone(manual)
+    return milestone['id'] if milestone else False
 
 def get_iteration(manual):
     if manual:
@@ -820,7 +826,7 @@ def main():
 
     milestone = False
     if not args.no_milestone:
-        milestone = get_milestone(args.milestone)['id']
+        milestone = get_milestone_id(args.milestone)
 
     iteration = False
     if not args.no_iteration:
