@@ -8,11 +8,11 @@
 
 ## Installation 🔨
 
-### Preresequisits
+### Prerequisites
 
 - install python3 (make sure to include pip in install)
 - Install [glab](https://gitlab.com/gitlab-org/cli)
-- Authorize via glab `glab auth login` (you will need Gitlab access token, SSH recomended)
+- Authorize via glab `glab auth login` (you will need Gitlab access token, SSH recommended)
 - `pip install inquirer` or `pip3 install inquirer`
 - `pip install requests` or `pip3 install requests`
 
@@ -82,7 +82,7 @@ If you don't want to include some settings you use following flags:
 If you are in a hurry and want to create issue for later without merge request and branch this flag is for you.
 
 - `--only_issue` - no merge request nor branch will be created.
-  You can achive same functionality with adding onlyIssue key to `templates.json` file.
+  You can achieve same functionality with adding onlyIssue key to `templates.json` file.
 
 ```
 ...
@@ -127,7 +127,7 @@ gh review
 To also enable **auto-merge when the pipeline succeeds**, add `--auto_merge` or `-am` flag:
 
 ```
-gh review –-auto_merge
+gh review --auto_merge
 
 gh review -am
 ```
@@ -176,43 +176,13 @@ To configure production deployment detection, add project-specific mappings to y
 **Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 
 
-You can check when the last successful production deployment occurred:
-
-```
-gh last deploy
-```
-
-This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
-
-#### Configuration
-
-To configure production deployment detection, add project-specific mappings to your `templates.json`:
-
-```json
-{
-  "templates": [...],
-  "reviewers": [...],
-  "productionMappings": {
-    "your_project_id": {
-      "stage": "production:deploy",
-      "job": "deploy-to-production"
-    },
-    "another_project_id": {
-      "stage": "deploy",
-      "job": "production:deploy"
-    }
-  }
-}
-```
-
-**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
 ### Flag help
 
 If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
 
 ## Troubleshooting 🪲🔫
 
-### Recieving 401 Unauthorized error
+### Receiving 401 Unauthorized error
 
 If you get `glab: 401 Unauthorized (HTTP 401)` when using GitHappens, you must repeat `glab auth login`
 and then reopen your terminal.
