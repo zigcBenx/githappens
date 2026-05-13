@@ -3,18 +3,115 @@ import subprocess
 import json
 import argparse
 import configparser
-import inquirer
 import datetime
 import re
 import os
-import requests
+import shutil
 import sys
 import webbrowser
 
-# Setup config parser and read settings
-config = configparser.ConfigParser()
 absolute_config_path = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(absolute_config_path, 'configs/config.ini')
+templates_path = os.path.join(absolute_config_path, 'configs/templates.json')
+templates_example_path = os.path.join(absolute_config_path, 'configs/templates.json.example')
+
+
+def ask_with_default(message, default="", required=False):
+    prompt = f"{message}"
+    if default:
+        prompt += f" [{default}]"
+    prompt += ": "
+
+    while True:
+        try:
+            answer = input(prompt).strip()
+        except EOFError:
+            print("\nSetup cancelled: no input was provided.")
+            sys.exit(1)
+        if not answer and default:
+            return default
+        if answer or not required:
+            return answer
+        print("This value is required.")
+
+
+def ask_yes_no(message, default=True):
+    default_label = "Y/n" if default else "y/N"
+    try:
+        answer = input(f"{message} [{default_label}]: ").strip().lower()
+    except EOFError:
+        print("\nSetup cancelled: no input was provided.")
+        sys.exit(1)
+    if not answer:
+        return default
+    return answer in ("y", "yes", "true", "1")
+
+
+def run_setup_wizard():
+    print("GitHappens setup wizard")
+    print("This will create or update files in the configs folder.")
+
+    configs_dir = os.path.join(absolute_config_path, 'configs')
+    os.makedirs(configs_dir, exist_ok=True)
+
+    if not os.path.exists(templates_path):
+        shutil.copyfile(templates_example_path, templates_path)
+        print(f"Created {templates_path}")
+
+    if os.path.exists(config_path):
+        overwrite_config = ask_yes_no("configs/config.ini already exists. Overwrite it?", default=False)
+        if not overwrite_config:
+            print("Setup skipped. Existing configs/config.ini was left unchanged.")
+            return
+
+    base_url = ask_with_default("GitLab base URL", "https://gitlab.com", required=True).rstrip("/")
+    group_id = ask_with_default("GitLab group ID", required=True)
+    custom_template = ask_with_default("Custom template name", "Custom", required=True)
+    gitlab_token = ask_with_default("GitLab access token")
+    squash_commits = ask_yes_no("Squash commits by default?", default=True)
+    delete_branch = ask_yes_no("Delete source branch after merge?", default=True)
+    developer_email = ask_with_default("Developer email")
+    openai_api_key = ask_with_default("OpenAI API key for AI review")
+    incident_project_id = ask_with_default("Incident project ID")
+    production_pipeline_name = ask_with_default("Production pipeline name", "deploy")
+    production_job_name = ask_with_default("Production job name")
+    production_ref = ask_with_default("Production ref")
+
+    config_content = f"""[DEFAULT]
+base_url={base_url}
+group_id={group_id}
+custom_template={custom_template}
+GITLAB_TOKEN={gitlab_token}
+squash_commits={str(squash_commits).lower()}
+delete_branch_after_merge={str(delete_branch).lower()}
+developer_email={developer_email}
+OPENAI_API_KEY={openai_api_key}
+incident_project_id={incident_project_id}
+production_pipeline_name={production_pipeline_name}
+production_job_name={production_job_name}
+production_ref={production_ref}
+"""
+
+    with open(config_path, "w") as config_file:
+        config_file.write(config_content)
+
+    print(f"Saved {config_path}")
+    print("Setup complete. You can edit configs/templates.json whenever you want to customize issue templates.")
+
+
+if len(sys.argv) > 1 and sys.argv[1] == 'setup':
+    run_setup_wizard()
+    sys.exit(0)
+
+if not os.path.exists(config_path) or not os.path.exists(templates_path):
+    print("GitHappens config files are missing. Starting setup wizard...")
+    run_setup_wizard()
+
+import inquirer
+import requests
+
+# Setup config parser and read settings
+config = configparser.ConfigParser()
 config.read(config_path)
 
 BASE_URL        = config.get('DEFAULT', 'base_url')
@@ -31,7 +128,7 @@ PRODUCTION_REF = config.get('DEFAULT', 'production_ref', fallback=None)
 MAIN_BRANCH     = 'master'
 
 # Read templates from json config
-with open(os.path.join(absolute_config_path,'configs/templates.json'), 'r') as f:
+with open(templates_path, 'r') as f:
     jsonConfig = json.load(f)
 TEMPLATES = jsonConfig['templates']
 REVIEWERS = jsonConfig['reviewers']

@@ -22,10 +22,13 @@
 
 #### Setup configs
 
-- In configs folder copy example files like so:
+- Run the setup wizard and follow the prompts:
+  `python3 gitHappens.py setup`
+- The wizard creates `configs/config.ini`, copies `configs/templates.json.example` to `configs/templates.json` if needed, and saves your GitLab URL, group ID, token, and default merge settings.
+- Alternatively, in configs folder copy example files manually:
   `cp configs/templates.json.example configs/templates.json`
   `cp configs/config.ini.example configs/config.ini`
-- In `configs.ini` you have to paste id of your group in Gitlab to `group_id` (This is for fetching milestones and epics)
+- In `config.ini` you have to paste id of your group in Gitlab to `group_id` (This is for fetching milestones and epics)
 - You can adjust templates now, or play with them later (however, you have to remove comments from json before running the command).
 
 #### Alias
@@ -225,4 +228,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
