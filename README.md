@@ -38,6 +38,18 @@ Run `source ~/.zshrc` or restart terminal.
 
 ## Usage ⚡
 
+## Project structure
+
+GitHappens keeps the executable `gitHappens.py` at the repository root for existing aliases, but the implementation lives in the `githappens/` package:
+
+- `githappens/main.py` parses CLI arguments and dispatches commands.
+- `githappens/config.py` loads `configs/config.ini` and `configs/templates.json`.
+- `githappens/gitlab_api.py` contains GitLab HTTP and `glab api` interactions.
+- `githappens/templates.py` contains issue template lookup helpers.
+- `githappens/git_utils.py` contains local Git helpers.
+- `githappens/interactive.py` contains terminal prompts.
+- `githappens/commands/` contains command workflows for creating issues, reviews, merge request opening, and deployment checks.
+
 ### Project selection
 
 - Project selection is made automatically if you run script in same path as your project is located.
@@ -225,4 +237,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
