@@ -76,6 +76,47 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(get_issue_settings(config, "Feature"), {"name": "Feature", "weight": 3})
         self.assertEqual(get_issue_settings(config, "Custom"), {})
 
+    def test_load_app_config_reports_missing_templates_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "configs").mkdir()
+            (root / "configs" / "config.ini").write_text(
+                "\n".join(
+                    [
+                        "[DEFAULT]",
+                        "base_url=https://gitlab.com",
+                        "group_id=1",
+                        "custom_template=Custom",
+                        "GITLAB_TOKEN=token",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(FileNotFoundError, "Missing templates file"):
+                load_app_config(root)
+
+    def test_load_app_config_reports_invalid_templates_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "configs").mkdir()
+            (root / "configs" / "config.ini").write_text(
+                "\n".join(
+                    [
+                        "[DEFAULT]",
+                        "base_url=https://gitlab.com",
+                        "group_id=1",
+                        "custom_template=Custom",
+                        "GITLAB_TOKEN=token",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            (root / "configs" / "templates.json").write_text("{invalid", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "Invalid templates file"):
+                load_app_config(root)
+
 
 if __name__ == "__main__":
     unittest.main()

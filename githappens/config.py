@@ -51,8 +51,13 @@ def load_app_config(base_path: Path | str | None = None) -> AppConfig:
             f"Missing config file: {config_path}. Copy configs/config.ini.example to configs/config.ini."
         )
 
-    with templates_path.open("r", encoding="utf-8") as file:
-        template_config = json.load(file)
+    try:
+        with templates_path.open("r", encoding="utf-8") as file:
+            template_config = json.load(file)
+    except FileNotFoundError as error:
+        raise FileNotFoundError(f"Missing templates file: {templates_path}. Copy or restore configs/templates.json.") from error
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Invalid templates file: {templates_path}. Fix the JSON syntax before running GitHappens.") from error
 
     base_url = parser.get("DEFAULT", "base_url")
     return AppConfig(

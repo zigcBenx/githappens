@@ -17,7 +17,7 @@ from .commands.open_mr import open_merge_request_in_browser
 from .commands.review import run_review_command
 from .config import AppConfig, load_app_config
 from .gitlab_api import GitLabApi
-from .interactive import select_template
+from .interactive import prompt_estimated_time, select_template
 from .templates import get_issue_settings
 
 
@@ -86,17 +86,27 @@ def main(config: AppConfig | None = None) -> None:
         print("NOTE: Overwriting project id from argument...")
 
     project_id = selected_settings.get("projectIds") or args.project_id or resolve_project_id(api)
-    milestone = False if args.no_milestone else get_selected_milestone(api, args.milestone)["id"]
+    selected_milestone = None if args.no_milestone else get_selected_milestone(api, args.milestone)
+    milestone = selected_milestone["id"] if selected_milestone else False
     iteration = False if args.no_iteration else get_selected_iteration(api, True)
     epic = False if args.no_epic else get_selected_epic(api)
     main_branch = git_utils.get_main_branch()
     only_issue = selected_settings.get("onlyIssue") or args.only_issue
+    estimated_time = _prompt_estimated_time_per_project(project_id)
 
     if isinstance(project_id, list):
         for item in project_id:
-            start_issue_creation(config, api, item, title, milestone, epic, iteration, selected_settings, only_issue, main_branch)
+            start_issue_creation(config, api, item, title, milestone, epic, iteration, selected_settings, only_issue, main_branch, estimated_time)
     else:
-        start_issue_creation(config, api, project_id, title, milestone, epic, iteration, selected_settings, only_issue, main_branch)
+        start_issue_creation(config, api, project_id, title, milestone, epic, iteration, selected_settings, only_issue, main_branch, estimated_time)
+
+
+def _prompt_estimated_time_per_project(project_id: str | int | list[str | int]) -> int | None:
+    estimated_time = prompt_estimated_time()
+    if not estimated_time:
+        return None
+    project_count = len(project_id) if isinstance(project_id, list) else 1
+    return int(int(estimated_time) / project_count)
 
 
 def generate_smart_summary(config: AppConfig) -> None:

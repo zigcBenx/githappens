@@ -28,30 +28,28 @@ def get_current_branch() -> str:
 
 
 def get_main_branch() -> str:
-    command = "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
     output = subprocess.check_output(
-        command,
-        shell=True,
+        ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
         stderr=subprocess.STDOUT,
-        universal_newlines=True,
+        text=True,
     )
-    return output.strip()
+    return output.strip().removeprefix("refs/remotes/origin/")
 
 
 def get_two_weeks_commits(developer_email: str | None = None) -> str:
     two_weeks_ago = (datetime.datetime.now() - datetime.timedelta(weeks=2)).strftime("%Y-%m-%d")
-    command = f'git log --since={two_weeks_ago} --format="%ad - %ae - %s" --date=short | grep -v "Merge branch"'
+    command = ["git", "log", f"--since={two_weeks_ago}", "--format=%ad - %ae - %s", "--date=short"]
     if developer_email:
-        command = f"{command} | grep {developer_email}"
+        command.append(f"--author={developer_email}")
 
     try:
-        return subprocess.check_output(
+        output = subprocess.check_output(
             command,
-            shell=True,
             text=True,
             stderr=subprocess.DEVNULL,
-            universal_newlines=True,
-        ).strip()
+        )
+        commits = [line for line in output.splitlines() if "Merge branch" not in line]
+        return "\n".join(commits).strip()
     except subprocess.CalledProcessError:
         return ""
     except FileNotFoundError:

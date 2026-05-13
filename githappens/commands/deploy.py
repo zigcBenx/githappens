@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import datetime
 
-import requests
-
 from githappens import git_utils
 from githappens.config import AppConfig
 from githappens.gitlab_api import GitLabApi
@@ -14,22 +12,20 @@ def get_last_production_deploy(config: AppConfig, api: GitLabApi, main_branch: s
     try:
         project_id = resolve_project_id(api)
         ref = config.production_ref or main_branch or git_utils.get_main_branch()
-        response = requests.get(
-            f"{config.api_url}/projects/{project_id}/pipelines",
-            headers=api.headers,
-            params={"per_page": 50, "order_by": "updated_at", "sort": "desc", "ref": ref},
-        )
-        if response.status_code != 200:
-            print(f"Failed to fetch pipelines: {response.status_code} - {response.text}")
-            return
-
         production_pipeline = None
+        pipelines = api.get_json(
+            f"/projects/{project_id}/pipelines",
+            per_page=20,
+            order_by="updated_at",
+            sort="desc",
+            ref=ref,
+        )
         project_mapping = config.production_mappings.get(str(project_id))
-        for pipeline in response.json():
-            jobs_response = requests.get(f"{config.api_url}/projects/{project_id}/pipelines/{pipeline['id']}/jobs", headers=api.headers)
-            if jobs_response.status_code != 200:
+        for pipeline in pipelines or []:
+            jobs = api.get_json(f"/projects/{project_id}/pipelines/{pipeline['id']}/jobs")
+            if not jobs:
                 continue
-            for job in jobs_response.json():
+            for job in jobs:
                 if job.get("status", "").lower() != "success":
                     continue
                 if _matches_production_job(config, project_mapping, job):

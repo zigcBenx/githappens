@@ -8,7 +8,6 @@ from githappens import git_utils
 from githappens.config import AppConfig
 from githappens.gitlab_api import GitLabApi
 from githappens.interactive import (
-    prompt_estimated_time,
     select_epic,
     select_iteration,
     select_labels,
@@ -32,21 +31,21 @@ def enter_project_id() -> str:
         project_id = input("Please enter the ID of your GitLab project: ")
         if project_id:
             return project_id
-        raise SystemExit("Invalid project ID.")
+        print("Invalid project ID.")
 
 
-def current_milestone(milestones: list[dict[str, Any]]) -> dict[str, Any]:
+def current_milestone(milestones: list[dict[str, Any]]) -> dict[str, Any] | None:
     today = datetime.date.today().strftime("%Y-%m-%d")
     active = [
         milestone
         for milestone in milestones
-        if milestone["start_date"] and milestone["due_date"] and milestone["start_date"] <= today <= milestone["due_date"]
+        if milestone.get("start_date") and milestone.get("due_date") and milestone["start_date"] <= today <= milestone["due_date"]
     ]
     active.sort(key=lambda milestone: milestone["due_date"])
-    return active[0]
+    return active[0] if active else None
 
 
-def get_selected_milestone(api: GitLabApi, manual: bool) -> dict[str, Any]:
+def get_selected_milestone(api: GitLabApi, manual: bool) -> dict[str, Any] | None:
     milestones = api.list_group_milestones()
     if manual:
         title = select_milestone(milestones)
@@ -54,18 +53,18 @@ def get_selected_milestone(api: GitLabApi, manual: bool) -> dict[str, Any]:
     return current_milestone(milestones)
 
 
-def get_active_iteration(api: GitLabApi) -> dict[str, Any]:
+def get_active_iteration(api: GitLabApi) -> dict[str, Any] | None:
     today = datetime.date.today().strftime("%Y-%m-%d")
     active = [
         iteration
         for iteration in api.list_group_iterations()
-        if iteration["start_date"] and iteration["due_date"] and iteration["start_date"] <= today <= iteration["due_date"]
+        if iteration.get("start_date") and iteration.get("due_date") and iteration["start_date"] <= today <= iteration["due_date"]
     ]
     active.sort(key=lambda iteration: iteration["due_date"])
-    return active[0]
+    return active[0] if active else None
 
 
-def get_selected_iteration(api: GitLabApi, manual: bool) -> dict[str, Any]:
+def get_selected_iteration(api: GitLabApi, manual: bool) -> dict[str, Any] | None:
     if not manual:
         return get_active_iteration(api)
     iterations = api.list_group_iterations()
@@ -113,11 +112,11 @@ def start_issue_creation(
     selected_settings: dict[str, Any],
     only_issue: bool,
     main_branch: str,
+    estimated_time: int | None = None,
 ) -> dict[str, Any]:
-    estimated_time = prompt_estimated_time()
     if estimated_time:
         selected_settings = selected_settings.copy()
-        selected_settings["estimated_time"] = int(int(estimated_time) / len(project_id)) if isinstance(project_id, list) else int(estimated_time)
+        selected_settings["estimated_time"] = estimated_time
 
     created_issue = create_issue(api, project_id, title, milestone_id, epic, iteration, selected_settings)
     print(f"Issue #{created_issue['iid']}: {created_issue['title']} created.")

@@ -8,6 +8,8 @@ import requests
 
 from .config import AppConfig
 
+DEFAULT_TIMEOUT_SECONDS = 15
+
 
 class GitLabApi:
     def __init__(self, config: AppConfig):
@@ -18,7 +20,11 @@ class GitLabApi:
         return {"PRIVATE-TOKEN": self.config.gitlab_token, "Private-Token": self.config.gitlab_token}
 
     def get_json(self, path: str, **params: Any) -> Any:
-        response = requests.get(f"{self.config.api_url}{path}", headers=self.headers, params=params or None)
+        try:
+            response = requests.get(f"{self.config.api_url}{path}", headers=self.headers, params=params or None, timeout=DEFAULT_TIMEOUT_SECONDS)
+        except requests.RequestException as error:
+            print(f"Request failed: {error}")
+            raise SystemExit(1) from error
         if response.status_code == 401:
             print("Error: Unauthorized (401). Your GitLab token is probably expired, invalid, or missing required permissions.")
             print("Please generate a new token and update your configs/config.ini.")
@@ -29,7 +35,11 @@ class GitLabApi:
         return response.json()
 
     def put_json(self, path: str, payload: dict[str, Any]) -> requests.Response:
-        return requests.put(f"{self.config.api_url}{path}", headers=self.headers, json=payload)
+        try:
+            return requests.put(f"{self.config.api_url}{path}", headers=self.headers, json=payload, timeout=DEFAULT_TIMEOUT_SECONDS)
+        except requests.RequestException as error:
+            print(f"Request failed: {error}")
+            raise SystemExit(1) from error
 
     def glab_json(self, args: list[str]) -> Any:
         output = subprocess.check_output(["glab", "api", *args])
@@ -152,21 +162,10 @@ class GitLabApi:
         return self.glab_json(command)
 
     def get_merge_requests_for_branch(self, project_id: str | int, branch_name: str) -> list[dict[str, Any]]:
-        response = requests.get(
-            f"{self.config.api_url}/projects/{project_id}/merge_requests",
-            headers=self.headers,
-            params={"source_branch": branch_name},
-        )
-        if response.status_code == 200:
-            return response.json()
-        print(f"Failed to fetch Merge Requests: {response.status_code} - {response.text}")
-        return []
+        return self.get_json(f"/projects/{project_id}/merge_requests", source_branch=branch_name) or []
 
     def get_user(self, reviewer_id: int) -> dict[str, Any] | None:
-        response = requests.get(f"{self.config.api_url}/users/{reviewer_id}", headers=self.headers)
-        if response.status_code == 200:
-            return response.json()
-        return None
+        return self.get_json(f"/users/{reviewer_id}")
 
     def update_merge_request_reviewers(self, project_id: str | int, mr_id: str | int, reviewer_ids: list[int]) -> None:
         self.put_json(f"/projects/{project_id}/merge_requests/{mr_id}", {"reviewer_ids": reviewer_ids})
