@@ -1,0 +1,1 @@
+"""GitHappens test suite."""
