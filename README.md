@@ -36,7 +36,20 @@ Add following line to your `.bashrc` or `.zshrc` file
 
 Run `source ~/.zshrc` or restart terminal.
 
-## Usage ⚡
+## Project Structure 📁
+
+The codebase has been refactored into a modular architecture for better maintainability:
+
+
+
+### Running Tests
+
+Error: Unauthorized (401). Your GitLab token is probably expired, invalid, or missing required permissions.
+Please generate a new token and update your configs/config.ini.
+
+---
+
+## Usage## Usage ⚡
 
 ### Project selection
 
