@@ -1,9 +1,9 @@
-// Allowed keys:
+// Allowed template keys:
 // name       String
 // weight     Number
 // labels     Array[String]
-// projectIds Number
-// epicId     Number
+// projectIds Number or Array[Number]
+// type       String, defaults to "issue"
 // onlyIssue  Bool
 {
     "templates": [
@@ -26,7 +26,7 @@
         "name": "Feature medium BE + FE issue only",
         "weight": 6,
         "labels": ["feature::Confirmed"],
-	"projectIds": [123, 584],
+        "projectIds": [123, 584],
         "onlyIssue": true
       }
     ],
