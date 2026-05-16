@@ -44,6 +44,28 @@ Run `source ~/.zshrc` or restart terminal.
 - You can specify project id or URL-encoded path as script argument e.g.: `--project_id=123456`
 - If no of steps above happen, program will prompt you with question about project_id
 
+### Project structure
+
+The CLI entrypoint is intentionally thin. Core behavior lives in the `githappens/` package:
+
+```text
+gitHappens.py              # Backward-compatible wrapper for existing aliases
+githappens/main.py         # Argument parsing and command dispatch
+githappens/config.py       # config.ini and templates.json loading
+githappens/gitlab_api.py   # GitLab API and glab operations
+githappens/git_utils.py    # Local git helpers
+githappens/templates.py    # Template selection and lookup
+githappens/interactive.py  # Interactive prompt helpers
+githappens/commands/       # Command-specific workflows
+tests/                     # Unit tests for extracted helpers
+```
+
+Run the focused unit tests with:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 #### Issue creation for multiple projects at once
 
 This feature is useful if you have to create issue on both backend and frontend project for same thing.
@@ -225,4 +247,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
