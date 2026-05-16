@@ -36,6 +36,27 @@ Add following line to your `.bashrc` or `.zshrc` file
 
 Run `source ~/.zshrc` or restart terminal.
 
+## Project structure
+
+GitHappens keeps `gitHappens.py` as the executable compatibility entrypoint, while the implementation lives in focused modules:
+
+```text
+githappens/
+├── main.py              # Argument parsing and command dispatch
+├── config.py            # config.ini and templates.json loading
+├── gitlab_api.py        # GitLab API and glab helpers
+├── git_utils.py         # Local git helpers
+├── templates.py         # Issue template selection
+├── interactive.py       # inquirer prompt wrappers
+└── commands/
+    ├── create_issue.py  # Issue, branch, and merge request creation flow
+    ├── deploy.py        # Last production deploy lookup
+    ├── open_mr.py       # Current branch merge request browser opener
+    ├── report.py        # Incident report command
+    ├── review.py        # Review, reviewer, time tracking, and auto-merge flow
+    └── summary.py       # Commit summaries and AI summaries
+```
+
 ## Usage ⚡
 
 ### Project selection
@@ -225,4 +246,3 @@ I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/
 ## Donating 💜
 
 Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
