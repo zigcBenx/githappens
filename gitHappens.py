@@ -37,6 +37,20 @@ TEMPLATES = jsonConfig['templates']
 REVIEWERS = jsonConfig['reviewers']
 PRODUCTION_MAPPINGS = jsonConfig.get('productionMappings', {})
 
+def print_gitlab_auth_error():
+    print("Error: GitLab rejected the configured token (401 Unauthorized).")
+    print("Your token is probably expired, invalid, or missing required API permissions.")
+    print(f"Generate a new GitLab access token and update {config_path}.")
+
+def gitlab_request(method, url, **kwargs):
+    headers = kwargs.pop("headers", {})
+    headers = {"Private-Token": GITLAB_TOKEN, **headers}
+    response = requests.request(method, url, headers=headers, **kwargs)
+    if response.status_code == 401:
+        print_gitlab_auth_error()
+        exit(1)
+    return response
+
 def get_project_id():
     project_link = getProjectLinkFromCurrentDir()
     if (project_link == -1):
@@ -54,18 +68,10 @@ def get_project_id():
 def get_all_projects(project_link):
     url = API_URL + "/projects?membership=true&search=" + project_link.split('/')[-1].split('.')[0]
 
-    headers = {
-        "PRIVATE-TOKEN": GITLAB_TOKEN
-    }
-
-    response = requests.get(url, headers=headers)
+    response = gitlab_request("get", url)
 
     if response.status_code == 200:
         return response.json()
-    elif response.status_code == 401:
-        print("Error: Unauthorized (401). Your GitLab token is probably expired, invalid, or missing required permissions.")
-        print("Please generate a new token and update your configs/config.ini.")
-        exit(1)
     else:
         print(f"Request failed with status code {response.status_code}")
         return None
@@ -365,13 +371,12 @@ def find_merge_request_id_by_branch(branch_name):
 def getMergeRequestForBranch(branchName):
     project_id = get_project_id()
     api_url = f"{API_URL}/projects/{project_id}/merge_requests"
-    headers = {"Private-Token": GITLAB_TOKEN}
 
     params = {
         "source_branch": branchName,
     }
 
-    response = requests.get(api_url, headers=headers, params=params)
+    response = gitlab_request("get", api_url, params=params)
     if response.status_code == 200:
         merge_requests = response.json()
         for mr in merge_requests:
@@ -387,9 +392,8 @@ def chooseReviewersManually():
     reviewer_choices = []
     for reviewer_id in REVIEWERS:
         api_url = f"{API_URL}/users/{reviewer_id}"
-        headers = {"Private-Token": GITLAB_TOKEN}
         try:
-            response = requests.get(api_url, headers=headers)
+            response = gitlab_request("get", api_url)
             if response.status_code == 200:
                 user = response.json()
                 display_name = f"{user.get('name')} ({user.get('username')})"
@@ -416,19 +420,17 @@ def addReviewersToMergeRequest(reviewers=None):
     project_id = get_project_id()
     mr_id = getActiveMergeRequestId()
     api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}"
-    headers = {"Private-Token": GITLAB_TOKEN}
 
     data = {
         "reviewer_ids": reviewers if reviewers is not None else REVIEWERS
     }
 
-    requests.put(api_url, headers=headers, json=data)
+    gitlab_request("put", api_url, json=data)
 
 def setMergeRequestToAutoMerge():
     project_id = get_project_id()
     mr_id = getActiveMergeRequestId()
     api_url = f"{API_URL}/projects/{project_id}/merge_requests/{mr_id}/merge"
-    headers = {"Private-Token": GITLAB_TOKEN}
 
     data = {
         "id": project_id,
@@ -438,7 +440,7 @@ def setMergeRequestToAutoMerge():
         "auto_merge_strategy": "merge_when_pipeline_succeeds",
     }
 
-    requests.put(api_url, headers=headers, json=data)
+    gitlab_request("put", api_url, json=data)
 
 def getMainBranch():
     command = "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
@@ -626,7 +628,6 @@ def get_last_production_deploy():
     try:
         project_id = get_project_id()
         api_url = f"{API_URL}/projects/{project_id}/pipelines"
-        headers = {"Private-Token": GITLAB_TOKEN}
 
         # Set up parameters for the pipeline search
         params = {
@@ -647,7 +648,7 @@ def get_last_production_deploy():
                 # Fallback to common main branch names
                 params["ref"] = "main"
 
-        response = requests.get(api_url, headers=headers, params=params)
+        response = gitlab_request("get", api_url, params=params)
 
         if response.status_code != 200:
             print(f"Failed to fetch pipelines: {response.status_code} - {response.text}")
@@ -660,7 +661,7 @@ def get_last_production_deploy():
         for pipeline in pipelines:
             # Get pipeline details to check jobs
             pipeline_detail_url = f"{API_URL}/projects/{project_id}/pipelines/{pipeline['id']}/jobs"
-            detail_response = requests.get(pipeline_detail_url, headers=headers)
+            detail_response = gitlab_request("get", pipeline_detail_url)
 
             if detail_response.status_code == 200:
                 jobs = detail_response.json()
