@@ -1,228 +1,88 @@
-<div align="center">
-  <h1>GitHappens⚡</h1>
-  <h2>CLI that lets you open merge requests, file issues, and request reviews without leaving your terminal</h2>
-  <img src="https://github.com/user-attachments/assets/f18c0f04-edef-467c-b833-019643642beb" alt="GitHappens demo" />
-</div>
+# GitHappens ⚡
 
-## Getting started 🚀
+CLI tool for GitLab: create issues, merge requests, file reviews, and deployment tracking — without leaving your terminal.
 
-## Installation 🔨
-
-### Preresequisits
-
-- install python3 (make sure to include pip in install)
-- Install [glab](https://gitlab.com/gitlab-org/cli)
-- Authorize via glab `glab auth login` (you will need Gitlab access token, SSH recomended)
-- `pip install inquirer` or `pip3 install inquirer`
-- `pip install requests` or `pip3 install requests`
-
-### Setup
-
-- Clone repository to your local machine to whatever destination you want (just don't delete it later)
-
-#### Setup configs
-
-- In configs folder copy example files like so:
-  `cp configs/templates.json.example configs/templates.json`
-  `cp configs/config.ini.example configs/config.ini`
-- In `configs.ini` you have to paste id of your group in Gitlab to `group_id` (This is for fetching milestones and epics)
-- You can adjust templates now, or play with them later (however, you have to remove comments from json before running the command).
-
-#### Alias
-
-To run gitHappens script anywhere in filesystem, make sure to create an alias.
-Add following line to your `.bashrc` or `.zshrc` file
-`alias gh='python3 ~/<path-to-githappens-project>/gitHappens.py'`
-
-Run `source ~/.zshrc` or restart terminal.
-
-## Usage ⚡
-
-### Project selection
-
-- Project selection is made automatically if you run script in same path as your project is located.
-- You can specify project id or URL-encoded path as script argument e.g.: `--project_id=123456`
-- If no of steps above happen, program will prompt you with question about project_id
-
-#### Issue creation for multiple projects at once
-
-This feature is useful if you have to create issue on both backend and frontend project for same thing.
-
-- You can specify list of ids in `templates.json` file.
+## New Modular Structure
 
 ```
-...
-{
-  "name": "Feature issue for API and frontend",
-  ...
-  "projectIds": [123, 456]
-}
-...
+gitHappens/
+├── main.py                  # Entry point and CLI argument parsing
+├── gitlab_api.py            # GitLab API interactions and glab CLI wrappers
+├── config.py                # Configuration management (lazy-loaded)
+├── templates.py             # Template and reviewer selection UI
+├── git_utils.py             # Git operations: commit history, AI summaries
+├── interactive.py           # Interactive inquirer-based prompts
+├── gitHappens.py            # Backwards-compatible entry point shim
+├── configs/
+│   ├── config.ini            # User configuration (copy from .example)
+│   └── templates.json        # Issue templates and reviewer config
+└── commands/                # Domain-grouped command modules
+    ├── __init__.py           # Backwards-compatible re-exports
+    ├── create_issue.py        # Issue creation logic
+    ├── review.py             # Review workflow
+    ├── deploy.py             # Deployment checks
+    └── open_mr.py            # Merge request operations
 ```
 
-### Milestone selection
+## Requirements
 
-Milestone is set to current by default. If you want to pick it manually, pass `-m` or `--milestone` flag to the script.
+- Python 3 with pip
+- [glab CLI](https://gitlab.com/gitlab-org/cli) — install and authenticate with `glab auth login`
+- `pip install inquirer requests`
 
-### Issue templates
+## Setup
 
-Issue templates are located in `configs/templates.json`.
+1. Clone the repository
+2. Copy config examples:
+   ```
+   cp configs/config.ini.example configs/config.ini
+   cp configs/templates.json.example configs/templates.json
+   ```
+3. Edit `configs/config.ini`:
+   - Set `group_id` to your GitLab group ID (for fetching milestones/epics)
+   - Set `GITLAB_TOKEN` (or leave empty if using `glab auth`)
 
-**Make sure that names of templates are unique**
+## Running
 
-### Excluding features
+```bash
+# Create an issue (with interactive prompts)
+python3 gitHappens.py "My new feature idea"
 
-If you don't want to include some settings you use following flags:
+# Create issue + MR + branch in one shot
+python3 gitHappens.py "Fix login bug" -m
 
-- `--no_epic` - no epic will be selected or prompted
-- `--no_milestone` - no milestone will be selected or prompted
+# Just open an issue (no MR)
+python3 gitHappens.py "My issue" --only_issue
 
-### Only issue
+# Open current MR in browser
+python3 gitHappens.py open
 
-If you are in a hurry and want to create issue for later without merge request and branch this flag is for you.
+# Review workflow (add reviewers + AI review)
+python3 gitHappens.py review --select
+python3 gitHappens.py review --auto_merge
 
-- `--only_issue` - no merge request nor branch will be created.
-  You can achive same functionality with adding onlyIssue key to `templates.json` file.
+# Commit summaries
+python3 gitHappens.py summary        # last 2 weeks
+python3 gitHappens.py summaryAI      # AI-powered summary
 
-```
-...
-{
-  "name": "Feature issue for later",
-  ...
-  "onlyIssue": true
-}
-...
-```
+# Last production deployment info
+python3 gitHappens.py "last deploy"
 
-### Open merge request in browser
-
-You can open merge request for current checked out branch in browser with command:
-
-```
-gh open
-```
-
-### Git review
-
-You can set default reviewers in templates.json file.
-
-```
-...
-{
-  "templates": [
-    ...
-  ],
-  ...
-  "reviewers": [234, 456, 678]
-}
-...
+# Report an incident
+python3 gitHappens.py report "API timeout" 30
 ```
 
-To submit merge request into review run command:
+## Configuration
 
-```
-gh review
-```
-
-To also enable **auto-merge when the pipeline succeeds**, add `--auto_merge` or `-am` flag:
-
-```
-gh review –-auto_merge
-
-gh review -am
-```
-### Manually selecting reviewers
-
-To manually select reviewers for your merge request, use the `--select` flag with the review command:
-
-```
-gh review --select
-```
-
-You will be prompted with an interactive list of reviewers to choose from.
-
-
-### Last production deployment
-
-You can check when the last successful production deployment occurred:
-
-```
-gh last deploy
-```
-
-This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
-
-#### Configuration
-
-To configure production deployment detection, add project-specific mappings to your `templates.json`:
+### templates.json
 
 ```json
 {
-  "templates": [...],
-  "reviewers": [...],
-  "productionMappings": {
-    "your_project_id": {
-      "stage": "production:deploy",
-      "job": "deploy-to-production"
-    },
-    "another_project_id": {
-      "stage": "deploy",
-      "job": "production:deploy"
-    }
-  }
+    "templates": [
+      { "name": "Bug easy", "weight": 1, "labels": ["Bug"] },
+      { "name": "Feature medium", "weight": 5, "labels": ["feature"], "onlyIssue": true }
+    ],
+    "reviewers": [123, 456],
+    "productionMappings": {}
 }
 ```
-
-**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
-
-
-You can check when the last successful production deployment occurred:
-
-```
-gh last deploy
-```
-
-This command shows information about the most recent successful production deployment including timing, pipeline details, and how long ago it happened.
-
-#### Configuration
-
-To configure production deployment detection, add project-specific mappings to your `templates.json`:
-
-```json
-{
-  "templates": [...],
-  "reviewers": [...],
-  "productionMappings": {
-    "your_project_id": {
-      "stage": "production:deploy",
-      "job": "deploy-to-production"
-    },
-    "another_project_id": {
-      "stage": "deploy",
-      "job": "production:deploy"
-    }
-  }
-}
-```
-
-**Note:** The command only considers deployments with "success" status to ensure accurate last deployment information.
-### Flag help
-
-If you run just `gh` (or whatever alias you set) or `gh --help` you will see all available flags and a short explanation.
-
-## Troubleshooting 🪲🔫
-
-### Recieving 401 Unauthorized error
-
-If you get `glab: 401 Unauthorized (HTTP 401)` when using GitHappens, you must repeat `glab auth login`
-and then reopen your terminal.
-
-## Contributing 🫂🫶
-
-Every contributor is welcome.
-I suggest checking Gitlab's official API documentation: https://docs.gitlab.com/ee/api/merge_requests.html
-
-## Donating 💜
-
-Make sure to check this project on [OpenPledge](https://app.openpledge.io/repositories/zigcBenx/gitHappens).
-
